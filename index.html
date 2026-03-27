@@ -1622,39 +1622,36 @@ async function generarPDFFinal(d){
         '2.2 Servicios adicionales. Cualquier servicio adicional no comprendido expresamente en el listado anterior requerirá addendum escrito en el que se pactarán los honorarios correspondientes. EL PRESTADOR no estará obligado a prestarlo sin dicho addendum previo.'+(d.observaciones?'  2.3 Condiciones especiales: '+d.observaciones:''),
       ]
     },
-    (()=>{
-      const esquema=d.esquema||'mensual';
-      let c3parrafos=[];
-      if(esquema==='mensual'){
-        c3parrafos=[
-          '3.1 Esquema de cobro: IGUALA MENSUAL. Las partes convienen en un honorario fijo mensual de '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.) por mes calendario, '+(iva?'cantidad que incluye el IVA del 16%, equivalente a subtotal de '+fmtMXN(base)+' más IVA de '+fmtMXN(base*0.16):'a la que se adicionará el IVA al 16%, resultando un total mensual de '+fmtMXN(total))+', en términos de los artículos 14 y 17 de la LIVA.',
-          '3.2 Fecha y forma de pago. Los honorarios deberán cubrirse a más tardar el día '+d.dia_pago+' de cada mes calendario mediante '+d.forma_pago+', a partir del '+d.fecha_inicio+'.',
-          '3.3 CFDI. EL PRESTADOR emitirá el Comprobante Fiscal Digital por Internet (CFDI) dentro de los tres días hábiles siguientes a la recepción de cada pago (Arts. 29 y 29-A CFF).',
-          '3.4 Retenciones. EL CLIENTE retendrá el ISR sobre honorarios (Arts. 100-110 LISR) y lo enterará al SAT, entregando constancias a más tardar en febrero del ejercicio siguiente.',
-          '3.5 Ajuste anual. Los honorarios podrán revisarse anualmente por mutuo acuerdo escrito con base en la variación del INPC.',
-        ];
-      } else if(esquema==='parcialidades'){
-        let parcList='';
-        try{
-          const parcs=JSON.parse(d.parcialidades||'[]');
-          parcList=parcs.map(p=>`Parcialidad ${p.num} — ${p.concepto}: ${fmtMXN(p.monto)}, fecha límite de pago: ${p.fecha||'a convenir'}.`).join('  ');
-        }catch(e){}
-        c3parrafos=[
-          '3.1 Esquema de cobro: PARCIALIDADES. El honorario total pactado por el servicio objeto del presente contrato asciende a la cantidad de '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.), '+(iva?'IVA incluido.':'a la que se adicionará el IVA del 16%, resultando un total de '+fmtMXN(monto*1.16)+'.')+' Dicho monto se cubrirá en parcialidades conforme al siguiente calendario: '+parcList,
-          '3.2 Forma de pago. Cada parcialidad se pagará mediante '+d.forma_pago+'. EL PRESTADOR emitirá el CFDI correspondiente a cada pago dentro de los tres días hábiles siguientes a su recepción (Arts. 29 y 29-A CFF).',
-          '3.3 Mora. El incumplimiento en el pago de cualquier parcialidad en su fecha correspondiente causará intereses moratorios del 2.5% mensual sobre el monto insoluto (Art. 362 Código de Comercio), sin perjuicio del derecho de EL PRESTADOR a suspender el servicio o rescindir el contrato conforme a la Cláusula Cuarta.',
-          '3.4 Retenciones. EL CLIENTE retendrá el ISR sobre honorarios (Arts. 100-110 LISR) en cada parcialidad y lo enterará al SAT, entregando constancias a más tardar en febrero del ejercicio siguiente.',
-        ];
-      } else {
-        c3parrafos=[
-          '3.1 Esquema de cobro: PAGO POR EVENTO. Las partes convienen en un honorario único de '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.), '+(iva?'IVA incluido.':'a la que se adicionará el IVA del 16%, resultando un total de '+fmtMXN(monto*1.16)+'.')+' Este pago cubre la totalidad del servicio objeto del presente contrato.',
-          '3.2 Fecha y condición de pago. El honorario deberá cubrirse a más tardar el '+d.dia_pago+' mediante '+d.forma_pago+(d.hito_pago?', bajo la condición de: '+d.hito_pago:'')+'.',
-          '3.3 CFDI. EL PRESTADOR emitirá el CFDI correspondiente dentro de los tres días hábiles siguientes a la recepción del pago (Arts. 29 y 29-A CFF).',
-          '3.4 Retenciones. EL CLIENTE retendrá el ISR sobre honorarios (Arts. 100-110 LISR) y lo enterará al SAT, entregando la constancia de retención correspondiente.',
-        ];
-      }
-      return{tit:'Cláusula Tercera — Honorarios Profesionales y Forma de Pago',parrafos:c3parrafos};
-    })(),
+    {
+      tit:'Cláusula Tercera — Honorarios Profesionales y Forma de Pago',
+      parrafos:(()=>{
+        const esq=d.esquema||'mensual';
+        if(esq==='parcialidades'){
+          let parcList='';
+          try{const parcs=JSON.parse(d.parcialidades||'[]');parcList=parcs.map(p=>`Parcialidad ${p.num} — ${p.concepto}: ${fmtMXN(p.monto)}, fecha límite: ${p.fecha||'a convenir'}.`).join('  ');}catch(e){}
+          return[
+            '3.1 Esquema: PARCIALIDADES. Honorario total: '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.), '+(iva?'IVA incluido.':'más IVA 16%, total: '+fmtMXN(monto*1.16)+'.')+' Calendario de pagos: '+parcList,
+            '3.2 Forma. Cada parcialidad mediante '+d.forma_pago+'. CFDI en 3 días hábiles post-pago (Arts. 29 y 29-A CFF).',
+            '3.3 Mora. El incumplimiento de cualquier parcialidad causa intereses del 2.5% mensual (Art. 362 Cód. Comercio), sin perjuicio de suspensión o rescisión (Cláusula Cuarta).',
+            '3.4 Retenciones ISR en cada parcialidad (Arts. 100-110 LISR). Constancias a más tardar en febrero del ejercicio siguiente.',
+          ];
+        } else if(esq==='evento'){
+          return[
+            '3.1 Esquema: PAGO POR EVENTO. Honorario único: '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.), '+(iva?'IVA incluido.':'más IVA 16%, total: '+fmtMXN(monto*1.16)+'.')+' Cubre la totalidad del servicio.',
+            '3.2 Fecha y condición de pago: '+d.dia_pago+', mediante '+d.forma_pago+(d.hito_pago?'. Condición: '+d.hito_pago:'')+'. CFDI en 3 días hábiles (Arts. 29 y 29-A CFF).',
+            '3.3 Retenciones ISR (Arts. 100-110 LISR). Constancia de retención a más tardar en febrero del ejercicio siguiente.',
+          ];
+        } else {
+          return[
+            '3.1 Esquema: IGUALA MENSUAL. Honorario fijo: '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.) por mes, '+(iva?'IVA incluido, subtotal '+fmtMXN(base)+' + IVA '+fmtMXN(base*0.16):'más IVA 16%, total mensual: '+fmtMXN(total))+'. Arts. 14 y 17 LIVA.',
+            '3.2 Fecha y forma. Pago a más tardar el día '+d.dia_pago+' de cada mes mediante '+d.forma_pago+', a partir del '+d.fecha_inicio+'.',
+            '3.3 CFDI dentro de los tres días hábiles siguientes a cada pago (Arts. 29 y 29-A CFF).',
+            '3.4 Retenciones. EL CLIENTE retendrá y enterará el ISR al SAT (Arts. 100-110 LISR). Constancias a más tardar en febrero del ejercicio siguiente.',
+            '3.5 Ajuste anual. Los honorarios podrán revisarse por mutuo acuerdo escrito con base en la variación del INPC.',
+          ];
+        }
+      })(),
+    },
     {
       tit:'Cláusula Cuarta — Mora e Intereses Moratorios',
       parrafos:[
@@ -1712,19 +1709,14 @@ async function generarPDFFinal(d){
       ]
     },
     {
-      (()=>{
-        const m1label = d.com_medio1==='correo'?'correo electrónico':'WhatsApp';
-        const m2txt = d.com_medio2&&d.com_dato2?', y como medio secundario el '+( d.com_medio2==='correo'?'correo electrónico':'WhatsApp')+' '+d.com_dato2:'';
-        return{
-          tit:'Cláusula Décimo Primera — Medio de Comunicación Oficial',
-          parrafos:[
-            '11.1 Canal oficial. Las partes acuerdan que el medio de comunicación oficial para el intercambio de notificaciones, requerimientos, avisos con efectos jurídicos y comunicaciones relevantes derivadas del presente contrato, será el '+m1label+': '+d.com_dato1+m2txt+'. Las comunicaciones enviadas a dicho medio se tendrán por válidamente notificadas desde el momento de su envío.',
-            '11.2 Cambio de medio. Cualquier modificación al medio o dato de comunicación pactado deberá notificarse a la otra parte con al menos cinco (5) días hábiles de anticipación, mediante el propio canal establecido o por escrito fehaciente. El incumplimiento de esta obligación implicará que las notificaciones enviadas al medio originalmente pactado surtan plenos efectos legales.',
-            '11.3 Equivalencia. Las comunicaciones realizadas por los medios aquí establecidos tendrán plena validez jurídica entre las partes, de conformidad con los artículos 89 y 90 del Código de Comercio.',
-          ]
-        };
-      })(),
-      {tit:'Cláusula Décimo Segunda — Caso Fortuito y Fuerza Mayor',
+      tit:'Cláusula Décimo Primera — Medio de Comunicación Oficial',
+      parrafos:[
+        '11.1 Canal oficial. Las partes acuerdan que el medio de comunicación oficial para notificaciones y comunicaciones con efectos jurídicos será el '+(d.com_medio1==='correo'?'correo electrónico':'WhatsApp')+': '+(d.com_dato1||'—')+(d.com_medio2&&d.com_dato2?', y como medio secundario el '+(d.com_medio2==='correo'?'correo electrónico':'WhatsApp')+': '+d.com_dato2:'')+'. Las comunicaciones enviadas a dicho medio se tendrán por válidamente notificadas desde el momento de su envío.',
+        '11.2 Cambio de medio. Cualquier modificación al medio o dato pactado deberá notificarse con al menos cinco (5) días hábiles de anticipación por el propio canal o por escrito. El incumplimiento implica que las notificaciones al medio original surtan plenos efectos.',
+        '11.3 Equivalencia. Las comunicaciones por los medios aquí establecidos tienen plena validez jurídica conforme a los artículos 89 y 90 del Código de Comercio.',
+      ],
+    },
+    {tit:'Cláusula Décimo Segunda — Caso Fortuito y Fuerza Mayor',
       parrafos:[
         'Ninguna de las partes responderá por incumplimiento causado por eventos imprevisibles o inevitables ajenos a su voluntad (Art. 2111 CCF), como desastres naturales, epidemias, actos de terrorismo o cambios legislativos de emergencia.',
         'La parte afectada notificará en cinco (5) días hábiles describiendo el evento y su duración estimada. Si el evento se prolonga más de sesenta (60) días naturales, cualquiera de las partes podrá terminar el contrato sin responsabilidad, pagando solo los honorarios de servicios ya prestados.',
