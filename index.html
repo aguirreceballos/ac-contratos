@@ -847,8 +847,18 @@ function val2(){
 }
 function val3(){
   D.alcances=[...document.querySelectorAll('.alc-input')].map(i=>i.value.trim()).filter(v=>v);
-  if(!document.getElementById('h-monto').value||Number(document.getElementById('h-monto').value)<=0){alert('Indica el monto de honorarios');return false;}
   if(!D.alcances.length){alert('Agrega al menos un alcance');return false;}
+  if(!esquemaCobro){alert('Selecciona el esquema de cobro');return false;}
+  if(esquemaCobro==='mensual'){
+    if(!document.getElementById('h-monto').value||Number(document.getElementById('h-monto').value)<=0){alert('Indica el monto mensual');return false;}
+  } else if(esquemaCobro==='parcialidades'){
+    if(!document.getElementById('h-monto-total').value||Number(document.getElementById('h-monto-total').value)<=0){alert('Indica el monto total del servicio');return false;}
+    const montos=[...document.querySelectorAll('.parc-monto')].map(i=>Number(i.value||0));
+    if(montos.every(m=>m===0)){alert('Indica el monto de al menos una parcialidad');return false;}
+  } else if(esquemaCobro==='evento'){
+    if(!document.getElementById('h-monto-evento').value||Number(document.getElementById('h-monto-evento').value)<=0){alert('Indica el monto del servicio');return false;}
+  }
+  if(!document.getElementById('com-dato1').value.trim()){alert('Indica el medio de comunicación oficial con el cliente');return false;}
   return true;
 }
 
@@ -1338,33 +1348,7 @@ function toggleComMedio(){
   }
 }
 
-// ── OVERRIDE val3 para incluir validación de esquema ─────────────
-const _val3Original = val3;
-val3 = function(){
-  if(!esquemaCobro){ alert('Selecciona el esquema de cobro'); return false; }
-  if(esquemaCobro==='mensual'){
-    if(!document.getElementById('h-monto').value||Number(document.getElementById('h-monto').value)<=0){
-      alert('Indica el monto mensual'); return false;
-    }
-  } else if(esquemaCobro==='parcialidades'){
-    if(!document.getElementById('h-monto-total').value||Number(document.getElementById('h-monto-total').value)<=0){
-      alert('Indica el monto total del servicio'); return false;
-    }
-    const montos=[...document.querySelectorAll('.parc-monto')].map(i=>Number(i.value||0));
-    if(montos.every(m=>m===0)){ alert('Indica el monto de al menos una parcialidad'); return false; }
-  } else if(esquemaCobro==='evento'){
-    if(!document.getElementById('h-monto-evento').value||Number(document.getElementById('h-monto-evento').value)<=0){
-      alert('Indica el monto del servicio'); return false;
-    }
-  }
-  if(!document.getElementById('com-dato1').value.trim()){
-    alert('Indica el medio de comunicación oficial con el cliente'); return false;
-  }
-  // Recolectar alcances
-  D.alcances=[...document.querySelectorAll('.alc-input')].map(i=>i.value.trim()).filter(v=>v);
-  if(!D.alcances.length){ alert('Agrega al menos un alcance'); return false; }
-  return true;
-};
+// val3 consolidada arriba — sin override
 
 // ── Helper para leer datos de honorarios según esquema ───────────
 function getDatosHonorarios(){
