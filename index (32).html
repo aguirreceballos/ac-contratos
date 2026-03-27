@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contratos Digitales — Aguirre & Ceballos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap');
+:root{
+  --negro:#0A0A0A;--blanco:#F8F5EF;--gold:#C9A84C;--gold2:#E8C96A;
+  --cream:#F0EBE0;--cream2:#FAF7F2;--gris:#6B6B6B;--gris2:#ABABAB;
+  --border:#D4C9B4;--green:#2D6A4F;--red:#9B2335;--r:4px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--blanco);color:var(--negro);min-height:100vh}
+
+/* ── HEADER ── */
+.header{background:var(--negro);padding:16px 40px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;border-bottom:2px solid var(--gold)}
+.logo-text{font-family:'Playfair Display',serif;font-size:18px;color:var(--blanco);letter-spacing:.5px}
+.logo-sub{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-top:2px}
+.badge-doc{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold2);background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.3);padding:5px 14px;border-radius:20px}
+
+/* ── STEPS ── */
+.steps-bar{background:white;border-bottom:1px solid var(--border);padding:12px 40px;display:flex;overflow-x:auto}
+.step{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gris2);padding-right:24px;position:relative;white-space:nowrap}
+.step::after{content:'›';position:absolute;right:8px;color:var(--border)}
+.step:last-child::after{display:none}
+.step.active{color:var(--negro);font-weight:500}
+.step.done{color:var(--green)}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--cream);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0}
+.step.active .step-num{background:var(--negro);color:white;border-color:var(--negro)}
+.step.done .step-num{background:var(--green);color:white;border-color:var(--green)}
+
+/* ── LAYOUT ── */
+.container{max-width:920px;margin:0 auto;padding:36px 24px 80px}
+.panel{background:white;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.panel-header{background:var(--cream2);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:10px}
+.panel-title{font-family:'Playfair Display',serif;font-size:15px;font-weight:600}
+.panel-body{padding:24px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+label{font-size:10px;font-weight:500;letter-spacing:.8px;text-transform:uppercase;color:var(--gris)}
+input,select,textarea{font-family:'DM Sans',sans-serif;font-size:13.5px;padding:9px 11px;border:1px solid var(--border);border-radius:var(--r);background:var(--blanco);color:var(--negro);transition:border-color .15s;width:100%}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--gold);background:white}
+textarea{resize:vertical;min-height:72px}
+
+/* ── TIPO / MATERIAS ── */
+.tipo-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.tipo-card{border:2px solid var(--border);border-radius:8px;padding:18px;cursor:pointer;transition:all .2s;position:relative}
+.tipo-card:hover{border-color:var(--gold)}
+.tipo-card.selected{border-color:var(--gold);background:#FBF7EE}
+.tipo-check{position:absolute;top:12px;right:12px;width:20px;height:20px;border-radius:50%;background:var(--gold);color:white;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.tipo-card.selected .tipo-check{display:flex}
+.tipo-icon{font-size:24px;margin-bottom:8px}
+.tipo-name{font-family:'Playfair Display',serif;font-size:15px;font-weight:600}
+.tipo-desc{font-size:12px;color:var(--gris);margin-top:4px;line-height:1.5}
+.materias-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px}
+.materia-chip{border:1.5px solid var(--border);border-radius:20px;padding:7px 10px;font-size:11.5px;cursor:pointer;transition:all .15s;text-align:center;user-select:none;line-height:1.3}
+.materia-chip:hover{border-color:var(--gold);color:var(--gold)}
+.materia-chip.sel{background:var(--negro);color:var(--gold);border-color:var(--negro);font-weight:500}
+
+/* ── ALCANCES ── */
+.alcance-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--cream)}
+.alcance-row:last-child{border-bottom:none}
+.alcance-num{font-size:11px;color:var(--gris2);font-family:'DM Mono',monospace;min-width:22px}
+.btn-rm{background:none;border:1px solid var(--border);color:var(--gris);border-radius:var(--r);padding:7px 9px;cursor:pointer;font-size:12px;transition:all .15s;flex-shrink:0}
+.btn-rm:hover{border-color:var(--red);color:var(--red)}
+.btn-add{margin-top:10px;background:none;border:1.5px dashed var(--border);color:var(--gris);border-radius:var(--r);padding:9px 16px;cursor:pointer;font-size:13px;width:100%;transition:all .15s}
+.btn-add:hover{border-color:var(--gold);color:var(--gold)}
+
+/* ── HONORARIOS ── */
+.honor-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:end}
+.monto-wrap{position:relative}
+.monto-wrap input{padding-left:28px;font-family:'DM Mono',monospace;font-size:15px}
+.monto-prefix{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--gris)}
+
+/* ── BOTONES ── */
+.actions-row{display:flex;justify-content:space-between;align-items:center;margin-top:28px}
+.btn-primary{background:var(--negro);color:var(--gold);border:none;padding:13px 28px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+.btn-primary:hover{background:#222;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-secondary{background:none;color:var(--negro);border:1.5px solid var(--border);padding:12px 22px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all .2s}
+.btn-secondary:hover{border-color:var(--negro)}
+.btn-gold{background:var(--gold);color:var(--negro);border:none;padding:13px 28px;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-gold:hover{background:var(--gold2);transform:translateY(-1px)}
+.btn-gold:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ── MISC ── */
+.divider{height:1px;background:var(--cream);margin:18px 0}
+.nota{background:#FFFBEB;border:1px solid #FDE68A;border-radius:var(--r);padding:11px 14px;font-size:12px;color:#92400E;line-height:1.6}
+.nota-blue{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:var(--r);padding:11px 14px;font-size:12px;color:#1e40af;line-height:1.6}
+.nota-green{background:#ECFDF5;border:1px solid #A7F3D0;border-radius:var(--r);padding:16px;font-size:13px;color:#065F46;line-height:1.7}
+.screen{display:none}
+.screen.active{display:block}
+
+/* ── LINK BOX ── */
+.link-box{background:var(--cream2);border:1px solid var(--border);border-radius:8px;padding:20px 24px;margin-top:20px}
+.link-box-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:600;margin-bottom:4px}
+.link-box-sub{font-size:12px;color:var(--gris);margin-bottom:14px;line-height:1.5}
+.link-input-wrap{display:flex;gap:8px;align-items:center}
+.link-input{font-family:'DM Mono',monospace;font-size:12px;background:white;border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;flex:1;color:var(--negro)}
+.btn-copy{background:var(--negro);color:var(--gold);border:none;padding:10px 16px;border-radius:var(--r);font-size:12px;cursor:pointer;white-space:nowrap;transition:all .2s}
+.btn-copy:hover{background:#333}
+.btn-copy.copied{background:var(--green);color:white}
+
+/* ── CONTRATO PREVIEW ── */
+.contrato-preview{font-family:'DM Sans',sans-serif;font-size:12.5px;line-height:1.85;color:#1a1a1a;padding:48px 52px;background:white}
+.c-header{text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:2.5px solid var(--negro)}
+.c-logo-nombre{font-family:'Playfair Display',serif;font-size:21px;font-weight:700;letter-spacing:1px}
+.c-lema{font-size:9px;letter-spacing:3.5px;text-transform:uppercase;color:var(--gris);margin:4px 0 14px}
+.c-titulo{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.c-subtitulo{font-size:11px;color:var(--gris)}
+.c-datos{background:var(--cream2);border:1px solid var(--border);border-radius:4px;padding:14px 18px;margin:18px 0;font-size:12px}
+.c-datos-row{display:flex;gap:8px;margin-bottom:5px}
+.c-datos-row:last-child{margin-bottom:0}
+.c-datos-lbl{font-weight:600;min-width:110px;color:var(--gris)}
+.clausula{margin-bottom:18px}
+.clausula-titulo{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;color:var(--negro);border-left:3px solid var(--gold);padding-left:8px}
+.clausula p{text-align:justify;margin-bottom:5px}
+.clausula ol,.clausula ul{padding-left:20px;margin-top:5px}
+.clausula li{margin-bottom:4px;text-align:justify}
+.firma-section{margin-top:48px;padding-top:28px;border-top:1px solid var(--border)}
+.firma-titulo{text-align:center;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin-bottom:28px}
+.firma-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.firma-col{text-align:center}
+.firma-img-box{width:100%;height:80px;border-bottom:1.5px solid var(--negro);margin-bottom:6px;display:flex;align-items:flex-end;justify-content:center}
+.firma-nombre{font-weight:600;font-size:12px;margin-top:3px}
+.firma-cargo{font-size:11px;color:var(--gris);margin-top:1px}
+.firma-empresa{font-size:11px;color:var(--gris)}
+
+/* ── CANVAS ── */
+.canvas-wrap{border:2px dashed var(--border);border-radius:8px;background:#FAFAFA;position:relative;overflow:hidden}
+.canvas-wrap.has-sig{border-color:var(--green);border-style:solid;background:white}
+canvas{display:block;width:100%;height:160px;cursor:crosshair;touch-action:none}
+.canvas-lbl{position:absolute;top:8px;left:12px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--gris2)}
+.canvas-actions{display:flex;justify-content:flex-end;margin-top:6px}
+
+/* ── SUCCESS ── */
+.success-wrap{text-align:center;padding:56px 40px}
+.success-icon{width:68px;height:68px;border-radius:50%;background:#E8F5EE;border:2px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 22px}
+.success-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;margin-bottom:10px}
+.success-sub{font-size:13px;color:var(--gris);max-width:420px;margin:0 auto 28px;line-height:1.7}
+
+/* ── LOADING ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(10,10,10,.7);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;display:none}
+.loading-overlay.show{display:flex}
+.loading-spinner{width:44px;height:44px;border:3px solid rgba(201,168,76,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:16px}
+.loading-text{color:var(--gold);font-size:14px;letter-spacing:.5px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:600px){
+.form-grid,.tipo-grid,.materias-grid,.honor-row{grid-template-columns:1fr}
+.container{padding:20px 14px 60px}.header{padding:14px 16px}
+.panel-body{padding:16px}.contrato-preview{padding:24px 16px}
+.firma-grid{grid-template-columns:1fr}.steps-bar{padding:10px 14px}
+.link-input-wrap{flex-direction:column}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loading">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">Procesando...</div>
+</div>
+
+<div class="header">
+  <div><div class="logo-text">Aguirre &amp; Ceballos</div><div class="logo-sub">Liridicum · Tributa · Consilium</div></div>
+  <div class="badge-doc" id="header-badge">Contratos Digitales</div>
+</div>
+
+<!-- STEPS — solo visibles en modo despacho -->
+<div class="steps-bar" id="steps-bar">
+  <div class="step active" id="step-1"><div class="step-num">1</div> Datos del cliente</div>
+  <div class="step" id="step-2"><div class="step-num">2</div> Tipo de servicio</div>
+  <div class="step" id="step-3"><div class="step-num">3</div> Alcances y honorarios</div>
+  <div class="step" id="step-4"><div class="step-num">4</div> Tu firma</div>
+  <div class="step" id="step-5"><div class="step-num">5</div> Enviar al cliente</div>
+</div>
+
+<div class="container" id="main-container">
+
+<!-- ══ S1: DATOS CLIENTE ══ -->
+<div class="screen active" id="s1">
+  <div class="panel">
+    <div class="panel-header"><span>🏢</span><div class="panel-title">Datos del cliente / contratante</div></div>
+    <div class="panel-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>Razón social o nombre completo *</label><input type="text" id="c-razon" placeholder="Empresa S.A. de C.V. o Nombre Completo"></div>
+        <div class="form-group"><label>RFC *</label><input type="text" id="c-rfc" placeholder="ABC123456XYZ" style="font-family:'DM Mono',monospace;text-transform:uppercase"></div>
+        <div class="form-group"><label>Correo electrónico *</label><input type="email" id="c-email" placeholder="contacto@empresa.com"></div>
+        <div class="form-group full"><label>Domicilio fiscal completo *</label><input type="text" id="c-domicilio" placeholder="Calle, número, colonia, CP, ciudad, estado"></div>
+        <div class="form-group"><label>Nombre del representante legal *</label><input type="text" id="c-rep" placeholder="Nombre completo del firmante"></div>
+        <div class="form-group"><label>Cargo del representante</label><input type="text" id="c-cargo" placeholder="Director General, Socio, etc."></div>
+      </div>
+      <div class="nota" style="margin-top:16px">⚠️ Verifica que los datos coincidan con el acta constitutiva y la constancia de situación fiscal del cliente.</div>
+    </div>
+  </div>
+  <div class="actions-row"><div></div><button class="btn-primary" onclick="ir(2)">Continuar →</button></div>
+</div>
+
+<!-- ══ S2: TIPO DE SERVICIO ══ -->
+<div class="screen" id="s2">
+  <div class="panel">
+    <div class="panel-header"><span>⚖️</span><div class="panel-title">Tipo de servicio y materias</div></div>
+    <div class="panel-body">
+      <p style="font-size:13px;color:var(--gris);margin-bottom:18px;line-height:1.6">Selecciona el área principal y las materias específicas que se incluirán en el contrato.</p>
+      <div class="tipo-grid">
+        <div class="tipo-card" id="tc-legal" onclick="selectTipo('legal')">
+          <div class="tipo-check">✓</div><div class="tipo-icon">⚖️</div>
+          <div class="tipo-name">Servicios Legales</div>
+          <div class="tipo-desc">Asesoría jurídica, representación, consultoría y litigio en diversas materias del derecho.</div>
+        </div>
+        <div class="tipo-card" id="tc-contable" onclick="selectTipo('contable')">
+          <div class="tipo-check">✓</div><div class="tipo-icon">🧾</div>
+          <div class="tipo-name">Servicios Contables y Fiscales</div>
+          <div class="tipo-desc">Contabilidad, declaraciones, nómina y planeación tributaria.</div>
+        </div>
+      </div>
+      <div id="materias-legal" style="display:none">
+        <div class="divider"></div>
+        <label>Materias incluidas</label>
+        <div class="materias-grid">
+          <div class="materia-chip" onclick="toggleM(this,'Derecho Laboral')">Derecho Laboral</div>
+          <div class="materia-chip" onclick="toggleM(this,'Derecho Corporativo')">Derecho Corporativo</div>
+          <div class="materia-chip" onclick="toggleM(this,'Derecho Fiscal')">Derecho Fiscal</div>
+          <div class="materia-chip" onclick="toggleM(this,'Derecho Administrativo')">Derecho Administrativo</div>
+          <div class="materia-chip" onclick="toggleM(this,'Comercio Exterior / IMMEX')">Comercio Exterior / IMMEX</div>
+          <div class="materia-chip" onclick="toggleM(this,'Contratos Civiles y Mercantiles')">Contratos y Mercantil</div>
+          <div class="materia-chip" onclick="toggleM(this,'Fusiones y Adquisiciones')">Fusiones y Adquisiciones</div>
+          <div class="materia-chip" onclick="toggleM(this,'Litigio Laboral')">Litigio Laboral</div>
+          <div class="materia-chip" onclick="toggleM(this,'Propiedad Intelectual')">Propiedad Intelectual</div>
+          <div class="materia-chip" onclick="toggleM(this,'Derecho Penal Empresarial')">Penal Empresarial</div>
+          <div class="materia-chip" onclick="toggleM(this,'Cumplimiento Regulatorio')">Cumplimiento Regulatorio</div>
+          <div class="materia-chip" onclick="toggleM(this,'Reestructuras Corporativas')">Reestructuras Corporativas</div>
+        </div>
+      </div>
+      <div id="materias-contable" style="display:none">
+        <div class="divider"></div>
+        <label>Servicios incluidos</label>
+        <div class="materias-grid">
+          <div class="materia-chip" onclick="toggleM(this,'Contabilidad Mensual')">Contabilidad Mensual</div>
+          <div class="materia-chip" onclick="toggleM(this,'Declaraciones Fiscales Mensuales')">Declaraciones Mensuales</div>
+          <div class="materia-chip" onclick="toggleM(this,'Declaración Anual ISR')">Declaración Anual ISR</div>
+          <div class="materia-chip" onclick="toggleM(this,'Nómina e IMSS')">Nómina e IMSS</div>
+          <div class="materia-chip" onclick="toggleM(this,'DIOT Mensual')">DIOT Mensual</div>
+          <div class="materia-chip" onclick="toggleM(this,'Planeación Fiscal')">Planeación Fiscal</div>
+          <div class="materia-chip" onclick="toggleM(this,'Auditoría Interna')">Auditoría Interna</div>
+          <div class="materia-chip" onclick="toggleM(this,'Facturación Electrónica')">Facturación Electrónica</div>
+          <div class="materia-chip" onclick="toggleM(this,'Atención de Requerimientos SAT')">Requerimientos SAT</div>
+          <div class="materia-chip" onclick="toggleM(this,'Régimen RESICO')">Régimen RESICO</div>
+          <div class="materia-chip" onclick="toggleM(this,'Precios de Transferencia')">Precios de Transferencia</div>
+          <div class="materia-chip" onclick="toggleM(this,'Estados Financieros')">Estados Financieros</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="actions-row"><button class="btn-secondary" onclick="ir(1)">← Atrás</button><button class="btn-primary" onclick="ir(3)">Continuar →</button></div>
+</div>
+
+<!-- ══ S3: ALCANCES Y HONORARIOS ══ -->
+<div class="screen" id="s3">
+  <div class="panel">
+    <div class="panel-header"><span>📋</span><div class="panel-title">Alcances específicos del servicio</div></div>
+    <div class="panel-body">
+      <p style="font-size:13px;color:var(--gris);margin-bottom:14px;line-height:1.6">Cada alcance aparecerá como obligación específica en la Cláusula Segunda del contrato.</p>
+      <div id="alcances-list"></div>
+      <button class="btn-add" onclick="addAlcance()">+ Agregar alcance</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header"><span>💰</span><div class="panel-title">Honorarios y condiciones económicas</div></div>
+    <div class="panel-body">
+      <div class="honor-row">
+        <div class="form-group"><label>Honorarios mensuales (MXN) *</label><div class="monto-wrap"><span class="monto-prefix">$</span><input type="number" id="h-monto" placeholder="0.00" min="0" step="100"></div></div>
+        <div class="form-group"><label>¿Incluye IVA?</label><select id="h-iva"><option value="mas">No — se añadirá 16% IVA</option><option value="incluido">Sí — ya incluye IVA</option></select></div>
+        <div class="form-group"><label>Forma de pago</label><select id="h-forma"><option>Transferencia bancaria</option><option>Depósito bancario</option><option>Cheque</option><option>Efectivo</option></select></div>
+      </div>
+      <div class="divider"></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Día límite de pago</label><select id="h-dia"><option value="5">Día 5 de cada mes</option><option value="10">Día 10</option><option value="15" selected>Día 15</option><option value="el último día hábil">Último día hábil</option></select></div>
+        <div class="form-group"><label>Vigencia</label><select id="h-vigencia"><option value="12">12 meses</option><option value="24">24 meses</option></select></div>
+        <div class="form-group"><label>Fecha de inicio</label><input type="text" id="h-fecha" placeholder="ej. 1 de abril de 2026"></div>
+        <div class="form-group"><label>Preaviso para terminación</label><select id="h-preaviso"><option value="treinta (30)">30 días</option><option value="sesenta (60)">60 días</option><option value="noventa (90)">90 días</option></select></div>
+      </div>
+      <div class="form-group" style="margin-top:14px"><label>Observaciones especiales (opcional)</label><textarea id="h-obs" placeholder="Entregables, restricciones, condiciones especiales…"></textarea></div>
+    </div>
+  </div>
+  <div class="actions-row"><button class="btn-secondary" onclick="ir(2)">← Atrás</button><button class="btn-primary" onclick="ir(4)">Continuar →</button></div>
+</div>
+
+<!-- ══ S4: TU FIRMA (PRESTADOR) ══ -->
+<div class="screen" id="s4">
+  <div class="panel">
+    <div class="panel-header"><span>✍️</span><div class="panel-title">Tu firma — Aguirre &amp; Ceballos</div></div>
+    <div class="panel-body">
+      <p style="font-size:13px;color:var(--gris);margin-bottom:20px;line-height:1.7">Firma aquí como representante del despacho. Después se generará el link para que el cliente firme desde su dispositivo.</p>
+      <label style="margin-bottom:10px;display:block">Héctor Orlando Aguirre Ramírez — Socio Director</label>
+      <div class="canvas-wrap" id="wrap-prestador">
+        <span class="canvas-lbl">Traza tu firma aquí</span>
+        <canvas id="canvas-prestador" width="600" height="200"></canvas>
+      </div>
+      <div class="canvas-actions"><button class="btn-rm" onclick="clearCanvas('prestador')">Borrar firma</button></div>
+      <div class="divider"></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Lugar de firma</label><input type="text" id="firma-lugar" value="San Pedro Garza García, Nuevo León, México"></div>
+        <div class="form-group"><label>Fecha del contrato</label><input type="text" id="firma-fecha"></div>
+      </div>
+      <div class="nota-blue" style="margin-top:16px">🔏 Tu firma quedará guardada en el contrato. El cliente recibirá un link único para revisar el contrato completo y agregar la suya.</div>
+    </div>
+  </div>
+  <div class="actions-row"><button class="btn-secondary" onclick="ir(3)">← Atrás</button><button class="btn-primary" id="btn-guardar" onclick="guardarYGenerarLink()">Guardar y generar link →</button></div>
+</div>
+
+<!-- ══ S5: LINK GENERADO ══ -->
+<div class="screen" id="s5">
+  <div class="panel">
+    <div class="panel-header"><span>🔗</span><div class="panel-title">Contrato guardado — envía el link al cliente</div></div>
+    <div class="panel-body">
+      <div class="nota-green">
+        ✅ El contrato ha sido guardado y tu firma está registrada. Ahora envía este link al cliente para que lo revise y firme desde cualquier dispositivo.
+      </div>
+      <div class="link-box" style="margin-top:20px">
+        <div class="link-box-title">🔗 Link de firma para el cliente</div>
+        <div class="link-box-sub">El cliente solo podrá ver el contrato y firmar — no puede modificar ningún dato. El link es único para este contrato.</div>
+        <div class="link-input-wrap">
+          <input class="link-input" id="link-output" readonly placeholder="Generando link…">
+          <button class="btn-copy" id="btn-copy" onclick="copiarLink()">Copiar</button>
+        </div>
+      </div>
+      <div class="link-box" style="margin-top:12px">
+        <div class="link-box-title">✉️ Enviar por correo</div>
+        <div class="link-box-sub">Haz clic para abrir tu correo con el mensaje pre-redactado listo para enviar.</div>
+        <button class="btn-primary" onclick="abrirCorreo()" style="margin-top:4px">Abrir borrador de correo</button>
+      </div>
+      <div style="margin-top:20px;padding:16px;background:var(--cream2);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--gris)">RESUMEN DEL CONTRATO</div>
+        <div id="resumen-contrato" style="font-size:13px;line-height:1.8;color:var(--negro)"></div>
+      </div>
+    </div>
+  </div>
+  <div class="actions-row">
+    <button class="btn-secondary" onclick="nuevoContrato()">Nuevo contrato</button>
+    <div></div>
+  </div>
+</div>
+
+<!-- ══ MODO CLIENTE: FIRMA ══ -->
+<div class="screen" id="s-cliente">
+  <div class="panel">
+    <div class="panel-header"><span>📄</span><div class="panel-title">Contrato de Prestación de Servicios — Por favor revisa y firma</div></div>
+    <div class="contrato-preview" id="contrato-cliente-render"></div>
+  </div>
+  <div class="panel" style="margin-top:20px">
+    <div class="panel-header"><span>✍️</span><div class="panel-title">Tu firma digital</div></div>
+    <div class="panel-body">
+      <p style="font-size:13px;color:var(--gris);margin-bottom:18px;line-height:1.7">Al firmar confirmas haber leído y aceptado íntegramente el presente contrato. Traza tu firma con el dedo o el cursor.</p>
+      <label style="margin-bottom:10px;display:block" id="lbl-cliente-firma">Tu firma</label>
+      <div class="canvas-wrap" id="wrap-cliente">
+        <span class="canvas-lbl">Traza tu firma aquí</span>
+        <canvas id="canvas-cliente" width="600" height="200"></canvas>
+      </div>
+      <div class="canvas-actions"><button class="btn-rm" onclick="clearCanvas('cliente')">Borrar</button></div>
+      <div class="nota-blue" style="margin-top:16px">🔏 Esta firma electrónica tiene plena validez conforme al Art. 89 del Código de Comercio y la NOM-151-SCFI-2016. Al firmar, ambas partes recibirán el PDF completo.</div>
+    </div>
+  </div>
+  <div class="actions-row">
+    <div></div>
+    <button class="btn-gold" id="btn-firmar-cliente" onclick="firmarComoCliente()">✍️ Firmar y descargar contrato</button>
+  </div>
+</div>
+
+<!-- ══ SUCCESS CLIENTE ══ -->
+<div class="screen" id="s-success-cliente">
+  <div class="panel"><div class="success-wrap">
+    <div class="success-icon">✓</div>
+    <div class="success-title">¡Contrato firmado!</div>
+    <div class="success-sub">El PDF ha sido descargado. Aguirre &amp; Ceballos también recibirá una notificación con el contrato firmado. Conserva tu copia para cualquier referencia futura.</div>
+    <div style="background:var(--cream2);border:1px solid var(--border);border-radius:8px;padding:16px;margin:0 auto 24px;max-width:360px;text-align:left">
+      <div style="font-size:11px;font-weight:600;color:var(--gris);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Datos de contacto del despacho</div>
+      <div style="font-size:13px;line-height:1.8">📞 (844) 244-2007<br>✉️ admin@aguirreceballos.com<br>🌐 aguirreceballos.com</div>
+    </div>
+  </div></div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONFIGURACIÓN — PEGA AQUÍ TUS CREDENCIALES CUANDO SUPABASE ESTÉ LISTO
+// ══════════════════════════════════════════════════════════════════
+const SUPABASE_URL  = 'https://iknuncrmozqzinzdpqlo.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_-yBMi0hD6H6B_STOekED_A_qIh0xoC9';
+const APP_URL       = window.location.origin + window.location.pathname;
+const EMAIL_DESTINO = 'admin@aguirreceballos.com';
+// ══════════════════════════════════════════════════════════════════
+
+let db;
+try { db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+const D={tipo:'',materias:[],alcances:[]};
+let alcId=0;
+let contratoId=null;
+let contratoData=null;
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+// ── DETECTAR MODO AL CARGAR ──────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  const hoy=new Date();
+  const fechaHoy=`${hoy.getDate()} de ${MESES[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+  const fi=document.getElementById('firma-fecha');
+  if(fi) fi.value=fechaHoy;
+  const hf=document.getElementById('h-fecha');
+  if(hf) hf.value=`1 de ${MESES[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+  initCanvas('prestador');
+  initCanvas('cliente');
+  addAlcance();addAlcance();addAlcance();
+
+  // Detectar si es modo cliente (URL tiene ?id=xxx)
+  const params=new URLSearchParams(window.location.search);
+  const id=params.get('id');
+  if(id){
+    document.getElementById('steps-bar').style.display='none';
+    document.getElementById('header-badge').textContent='Firma de Contrato';
+    cargarContratoCliente(id);
+  }
+});
+
+// ── NAVEGACIÓN ───────────────────────────────────────────────────
+function ir(n){
+  if(n===2&&!val1())return;
+  if(n===3&&!val2())return;
+  if(n===4&&!val3())return;
+  for(let i=1;i<=5;i++){
+    document.getElementById('s'+i)?.classList.remove('active');
+    const st=document.getElementById('step-'+i);
+    if(st){st.classList.remove('active','done');if(i<n)st.classList.add('done');if(i===n)st.classList.add('active');}
+  }
+  document.getElementById('s'+n).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── VALIDACIONES ─────────────────────────────────────────────────
+function val1(){
+  for(const id of['c-razon','c-rfc','c-email','c-domicilio','c-rep']){
+    if(!document.getElementById(id).value.trim()){alert('Completa todos los campos requeridos (*)');document.getElementById(id).focus();return false;}
+  }return true;
+}
+function val2(){
+  if(!D.tipo){alert('Selecciona el tipo de servicio');return false;}
+  if(!D.materias.length){alert('Selecciona al menos una materia');return false;}
+  return true;
+}
+function val3(){
+  D.alcances=[...document.querySelectorAll('.alc-input')].map(i=>i.value.trim()).filter(v=>v);
+  if(!document.getElementById('h-monto').value||Number(document.getElementById('h-monto').value)<=0){alert('Indica el monto de honorarios');return false;}
+  if(!D.alcances.length){alert('Agrega al menos un alcance');return false;}
+  return true;
+}
+
+// ── TIPO Y MATERIAS ──────────────────────────────────────────────
+function selectTipo(t){
+  D.tipo=t;D.materias=[];
+  document.querySelectorAll('.tipo-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('tc-'+t).classList.add('selected');
+  document.getElementById('materias-legal').style.display=t==='legal'?'block':'none';
+  document.getElementById('materias-contable').style.display=t==='contable'?'block':'none';
+  document.querySelectorAll('.materia-chip').forEach(c=>c.classList.remove('sel'));
+}
+function toggleM(el,n){
+  el.classList.toggle('sel');
+  if(el.classList.contains('sel')){if(!D.materias.includes(n))D.materias.push(n);}
+  else D.materias=D.materias.filter(m=>m!==n);
+}
+
+// ── ALCANCES ─────────────────────────────────────────────────────
+function addAlcance(v=''){
+  alcId++;
+  const d=document.createElement('div');
+  d.className='alcance-row';d.id='alc-'+alcId;
+  d.innerHTML=`<span class="alcance-num">${String(alcId).padStart(2,'0')}</span><input type="text" class="alc-input" placeholder="Describe el alcance específico…" value="${v}" style="flex:1"><button class="btn-rm" onclick="document.getElementById('alc-${alcId}').remove()">✕</button>`;
+  document.getElementById('alcances-list').appendChild(d);
+}
+
+// ── CANVAS ───────────────────────────────────────────────────────
+const sigState={prestador:false,cliente:false};
+function initCanvas(id){
+  const cv=document.getElementById('canvas-'+id);
+  if(!cv)return;
+  const ctx=cv.getContext('2d');
+  let drawing=false,last=null;
+  cv.width=(cv.offsetWidth||600)*devicePixelRatio;
+  cv.height=200*devicePixelRatio;
+  ctx.scale(devicePixelRatio,devicePixelRatio);
+  ctx.strokeStyle='#0A0A0A';ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';
+  const pos=e=>{const r=cv.getBoundingClientRect(),s=e.touches?e.touches[0]:e;return{x:s.clientX-r.left,y:s.clientY-r.top};};
+  cv.addEventListener('mousedown',e=>{drawing=true;last=pos(e);});
+  cv.addEventListener('mousemove',e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;sigState[id]=true;document.getElementById('wrap-'+id)?.classList.add('has-sig');});
+  cv.addEventListener('mouseup',()=>drawing=false);cv.addEventListener('mouseleave',()=>drawing=false);
+  cv.addEventListener('touchstart',e=>{e.preventDefault();drawing=true;last=pos(e);},{passive:false});
+  cv.addEventListener('touchmove',e=>{e.preventDefault();if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;sigState[id]=true;document.getElementById('wrap-'+id)?.classList.add('has-sig');},{passive:false});
+  cv.addEventListener('touchend',()=>drawing=false);
+}
+function clearCanvas(id){
+  const cv=document.getElementById('canvas-'+id);
+  if(!cv)return;
+  cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+  sigState[id]=false;document.getElementById('wrap-'+id)?.classList.remove('has-sig');
+}
+function getSig(id){return document.getElementById('canvas-'+id).toDataURL('image/png');}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+const fmtMXN=n=>n.toLocaleString('es-MX',{style:'currency',currency:'MXN'});
+function calcFechaVenc(f,m){
+  try{const p=f.split(' de ');const mn=MESES.indexOf(p[1].toLowerCase());const fv=new Date(parseInt(p[2]),mn+parseInt(m),1);fv.setDate(fv.getDate()-1);return`${fv.getDate()} de ${MESES[fv.getMonth()]} de ${fv.getFullYear()}`;}
+  catch(e){return`[${m} meses desde inicio]`;}
+}
+function numALetras(n){
+  if(n===0)return'cero';
+  const u=['','un','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve'];
+  const d=['','','veinte','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+  const c=['','ciento','doscientos','trescientos','cuatrocientos','quinientos','seiscientos','setecientos','ochocientos','novecientos'];
+  if(n<20)return u[n];if(n<100)return d[Math.floor(n/10)]+(n%10?' y '+u[n%10]:'');
+  if(n<1000)return c[Math.floor(n/100)]+(n%100?' '+numALetras(n%100):'');
+  if(n<1000000){const m=Math.floor(n/1000);return(m===1?'mil':numALetras(m)+' mil')+(n%1000?' '+numALetras(n%1000):'');}
+  return n.toString();
+}
+function showLoading(txt='Procesando...'){document.getElementById('loading-text').textContent=txt;document.getElementById('loading').classList.add('show');}
+function hideLoading(){document.getElementById('loading').classList.remove('show');}
+function generarFolio(){return'A&C-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*9000)+1000);}
+
+// ── GUARDAR EN SUPABASE Y GENERAR LINK ───────────────────────────
+async function guardarYGenerarLink(){
+  if(!sigState.prestador){alert('Necesitas firmar primero');return;}
+  if(SUPABASE_URL==='TU_SUPABASE_URL_AQUI'){
+    alert('⚠️ Aún no has configurado Supabase.\n\nCuando tengas las credenciales, pégalas en las primeras líneas del script (SUPABASE_URL y SUPABASE_KEY) y despliega el archivo.');
+    return;
+  }
+  showLoading('Guardando contrato…');
+  try{
+    const datos={
+      razon_social:document.getElementById('c-razon').value.trim(),
+      rfc:document.getElementById('c-rfc').value.trim().toUpperCase(),
+      email:document.getElementById('c-email').value.trim(),
+      domicilio:document.getElementById('c-domicilio').value.trim(),
+      representante:document.getElementById('c-rep').value.trim(),
+      cargo_rep:document.getElementById('c-cargo').value.trim(),
+      tipo:D.tipo,
+      materias:D.materias,
+      alcances:D.alcances,
+      observaciones:document.getElementById('h-obs').value.trim(),
+      monto:Number(document.getElementById('h-monto').value),
+      incluye_iva:document.getElementById('h-iva').value==='incluido',
+      forma_pago:document.getElementById('h-forma').value,
+      dia_pago:document.getElementById('h-dia').value,
+      vigencia:document.getElementById('h-vigencia').value,
+      fecha_inicio:document.getElementById('h-fecha').value.trim(),
+      preaviso:document.getElementById('h-preaviso').value,
+      firma_prestador:getSig('prestador'),
+      fecha_firma:document.getElementById('firma-fecha').value.trim(),
+      lugar_firma:document.getElementById('firma-lugar').value.trim(),
+      folio:generarFolio(),
+      estatus:'borrador',
+    };
+    const{data,error}=await db.from('contratos').insert(datos).select().single();
+    if(error)throw error;
+    contratoId=data.id;
+    contratoData={...datos,id:contratoId};
+    const link=`${APP_URL}?id=${contratoId}`;
+    document.getElementById('link-output').value=link;
+    // Resumen
+    const total=datos.incluye_iva?datos.monto:datos.monto*1.16;
+    document.getElementById('resumen-contrato').innerHTML=`
+      <strong>Cliente:</strong> ${datos.razon_social}<br>
+      <strong>RFC:</strong> ${datos.rfc}<br>
+      <strong>Correo:</strong> ${datos.email}<br>
+      <strong>Servicio:</strong> ${datos.tipo==='legal'?'Legal':'Contable/Fiscal'} — ${datos.materias.join(', ')}<br>
+      <strong>Honorarios:</strong> ${fmtMXN(datos.monto)} mensuales (Total con IVA: ${fmtMXN(total)})<br>
+      <strong>Vigencia:</strong> ${datos.vigencia} meses a partir del ${datos.fecha_inicio}<br>
+      <strong>Folio:</strong> ${datos.folio}`;
+    hideLoading();
+    for(let i=1;i<=4;i++)document.getElementById('s'+i)?.classList.remove('active');
+    const st5=document.getElementById('step-5');if(st5){st5.classList.remove('active');st5.classList.add('active');}
+    for(let i=1;i<=4;i++){const s=document.getElementById('step-'+i);if(s)s.classList.add('done');}
+    document.getElementById('s5').classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){hideLoading();console.error(e);alert('Error al guardar: '+e.message);}
+}
+
+// ── COPIAR LINK ───────────────────────────────────────────────────
+function copiarLink(){
+  const inp=document.getElementById('link-output');
+  navigator.clipboard.writeText(inp.value).then(()=>{
+    const btn=document.getElementById('btn-copy');
+    btn.textContent='✓ Copiado';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Copiar';btn.classList.remove('copied');},2500);
+  });
+}
+
+// ── ABRIR CORREO ─────────────────────────────────────────────────
+function abrirCorreo(){
+  if(!contratoData)return;
+  const link=document.getElementById('link-output').value;
+  const subj=`Contrato de Prestación de Servicios — Aguirre & Ceballos`;
+  const body=`Estimado/a ${contratoData.representante},\n\nAdjunto encontrarás el enlace para revisar y firmar digitalmente el Contrato de Prestación de Servicios Profesionales entre ${contratoData.razon_social} y Aguirre & Ceballos.\n\n🔗 LINK DE FIRMA:\n${link}\n\nPor favor:\n1. Abre el link desde cualquier dispositivo\n2. Lee el contrato completo\n3. Traza tu firma en el recuadro\n4. Descarga tu copia en PDF\n\nEl proceso toma menos de 2 minutos. Si tienes alguna duda sobre el contenido del contrato, no dudes en contactarnos.\n\nAtentamente,\n\nHéctor Orlando Aguirre Ramírez\nSocio Director — Aguirre & Ceballos\nTel: (844) 244-2007\nadmin@aguirreceballos.com\nwww.aguirreceballos.com`;
+  window.open(`mailto:${contratoData.email}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`);
+}
+
+// ── CARGAR CONTRATO (MODO CLIENTE) ────────────────────────────────
+async function cargarContratoCliente(id){
+  showLoading('Cargando contrato…');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  try{
+    const{data,error}=await db.from('contratos').select('*').eq('id',id).single();
+    if(error||!data)throw new Error('Contrato no encontrado');
+    if(data.estatus==='firmado'){
+      hideLoading();
+      // Ya firmado
+      document.getElementById('s-success-cliente').classList.add('active');
+      document.querySelector('.success-title').textContent='Contrato ya firmado';
+      document.querySelector('.success-sub').textContent='Este contrato ya fue firmado por ambas partes. Contacta a Aguirre & Ceballos si necesitas una copia.';
+      return;
+    }
+    contratoData=data;
+    contratoId=id;
+    document.getElementById('lbl-cliente-firma').textContent=
+      (data.representante||'Representante Legal')+(data.cargo_rep?' — '+data.cargo_rep:'');
+    renderContratoCliente(data);
+    hideLoading();
+    document.getElementById('s-cliente').classList.add('active');
+  }catch(e){
+    hideLoading();
+    document.getElementById('main-container').innerHTML=`
+      <div class="panel"><div class="success-wrap">
+        <div style="font-size:48px;margin-bottom:16px">🔍</div>
+        <div class="success-title">Contrato no encontrado</div>
+        <div class="success-sub">El link puede haber expirado o ser inválido. Contacta a Aguirre & Ceballos para obtener un nuevo link.</div>
+        <div style="font-size:13px;color:var(--gris);margin-top:8px">📞 (844) 244-2007 · admin@aguirreceballos.com</div>
+      </div></div>`;
+  }
+}
+
+// ── RENDER CONTRATO (para ambos modos) ───────────────────────────
+function buildContratoHTML(d){
+  const monto=d.monto;
+  const iva=d.incluye_iva;
+  const total=iva?monto:monto*1.16;
+  const base=iva?monto/1.16:monto;
+  const ivaStr=iva?'IVA del 16% incluido':'más el Impuesto al Valor Agregado (IVA) a la tasa del 16%';
+  const tipoLabel=d.tipo==='legal'?'legales y jurídicos':'contables y fiscales';
+  const fechaVenc=calcFechaVenc(d.fecha_inicio,d.vigencia);
+  const alcancesHTML=(d.alcances||[]).map(a=>`<li>${a}</li>`).join('');
+  const folio=d.folio||generarFolio();
+
+  return`
+<div class="c-header">
+  <div class="c-logo-nombre">HAG ASESORES, S.C.</div>
+  <div class="c-lema">Liridicum · Tributa · Consilium</div>
+  <div class="c-titulo">Contrato de Prestación de Servicios Profesionales</div>
+  <div class="c-subtitulo">${d.tipo==='legal'?'Servicios Legales':'Servicios Contables y Fiscales'} — ${(d.materias||[]).join(', ')}</div>
+</div>
+<div class="c-datos">
+  <div class="c-datos-row"><span class="c-datos-lbl">Folio:</span><span>${folio}</span></div>
+  <div class="c-datos-row"><span class="c-datos-lbl">Elaboración:</span><span>${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}</span></div>
+  <div class="c-datos-row"><span class="c-datos-lbl">Vigencia:</span><span>${d.fecha_inicio} al ${fechaVenc} (${d.vigencia} meses)</span></div>
+  <div class="c-datos-row"><span class="c-datos-lbl">Honorarios:</span><span>${fmtMXN(monto)} mensuales ${ivaStr} — Total mensual: ${fmtMXN(total)}</span></div>
+</div>
+
+<div class="clausula"><div class="clausula-titulo">Declaraciones previas</div>
+<p>Comparecen: <strong>HAG ASESORES, SOCIEDAD CIVIL</strong> ("EL PRESTADOR"), RFC <strong>HAS250903NT4</strong>, Av. Ricardo Margain Zozaya 444, Corporativo Santa Engracia 1er Sector, 66267, San Pedro Garza García, N.L., representada por <strong>HÉCTOR ORLANDO AGUIRRE RAMÍREZ</strong>, Socio Director; y <strong>${(d.razon_social||'').toUpperCase()}</strong> ("EL CLIENTE"), RFC <strong>${d.rfc}</strong>, domicilio: ${d.domicilio}, representado/a por <strong>${(d.representante||'').toUpperCase()}</strong>, ${d.cargo_rep||'Representante Legal'}. Ambas partes declaran plena capacidad jurídica para suscribir este instrumento.</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Primera — Objeto del contrato</div>
+<p>Prestación de servicios profesionales de carácter ${tipoLabel} en las materias de: <strong>${(d.materias||[]).join(', ')}</strong>. Fundamento: Arts. 2606-2615 del Código Civil Federal. Servicios de naturaleza <em>intuitu personae</em>.</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Segunda — Alcances específicos</div>
+<p>Los servicios comprenden de manera enunciativa mas no limitativa:</p><ol>${alcancesHTML}</ol>
+<p>Cualquier ampliación de alcance deberá pactarse en addendum escrito.${d.observaciones?' <strong>Condiciones especiales:</strong> '+d.observaciones:''}</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Tercera — Honorarios</div>
+<p>EL CLIENTE pagará <strong>${fmtMXN(monto)} (${numALetras(Math.round(monto))} pesos 00/100 M.N.) mensuales</strong>, ${ivaStr}${iva?', equivalente a subtotal de '+fmtMXN(base)+' más IVA de '+fmtMXN(base*0.16):'. Total mensual: '+fmtMXN(total)}. Pago: día <strong>${d.dia_pago} de cada mes</strong> mediante <strong>${d.forma_pago}</strong>. CFDI en 3 días hábiles post-pago (Arts. 29 y 29-A CFF). EL CLIENTE retendrá ISR (Arts. 100-110 LISR) e IVA (Arts. 14 y 17 LIVA).</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Cuarta — Mora e intereses moratorios</div>
+<p>Intereses moratorios del <strong>2.5% mensual</strong> sobre saldo insoluto desde el día siguiente al vencimiento (Art. 362 Código de Comercio). Atraso mayor a 15 días: derecho de EL PRESTADOR a suspender servicios sin responsabilidad. Atraso mayor a 30 días: rescisión de pleno derecho (Art. 1949 CCF).</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Quinta — Vigencia y terminación</div>
+<p>Vigencia: <strong>${d.vigencia} meses</strong>. Inicio: <strong>${d.fecha_inicio}</strong>. Vencimiento: <strong>${fechaVenc}</strong>. Renovación automática salvo aviso con <strong>${d.preaviso} días</strong> de anticipación. Terminación anticipada sin causa: honorarios proporcionales más 1 mes de compensación (Art. 1915 CCF).</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Sexta — Confidencialidad</div>
+<p>Toda información del CLIENTE es estrictamente confidencial. EL PRESTADOR la utilizará exclusivamente para los fines del contrato, observando la LFPDPPP. La obligación subsiste 3 años post-terminación.</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Séptima — Propiedad intelectual</div>
+<p>Los productos intelectuales elaborados por EL PRESTADOR son de su exclusiva propiedad (Arts. 6, 13, 163-165 LFDA). EL CLIENTE tiene licencia de uso no exclusiva e intransferible para los fines del contrato.</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Octava — Independencia de las partes</div>
+<p>Sin relación laboral ni subordinación entre las partes (Arts. 8 y 20 LFT; Art. 14 LFT; Art. 26 CFF). EL PRESTADOR actúa con plena autonomía técnica y jurídica.</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Novena — Límite de responsabilidad</div>
+<p>Responsabilidad limitada a daños directos por dolo o culpa grave (Art. 2111 CCF). Sin responsabilidad por daños indirectos, lucro cesante o cambios legislativos. Tope máximo: 3 mensualidades de honorarios.</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusula Décima — Obligaciones de las partes</div>
+<p><strong>EL PRESTADOR:</strong> Servicios con diligencia (Art. 2606 CCF), actualización técnica, CFDI en tiempo, secreto profesional. <strong>EL CLIENTE:</strong> Información oportuna y veraz, pago puntual, retención ISR, notificación de requerimientos de autoridad, no contratar personal del PRESTADOR por 12 meses post-terminación.</p></div>
+
+<div class="clausula"><div class="clausula-titulo">Cláusulas Décimo Primera a Décimo Sexta</div>
+<p><strong>Caso fortuito y fuerza mayor:</strong> Sin responsabilidad por eventos imprevisibles (Art. 2111 CCF). Notificación en 5 días hábiles; terminación sin responsabilidad si supera 60 días.</p>
+<p><strong>Cesión:</strong> Prohibida sin consentimiento escrito previo. Cesión no autorizada es nula (Art. 2031 CCF).</p>
+<p><strong>Modificaciones:</strong> Solo mediante addendum escrito firmado por ambas partes.</p>
+<p><strong>Firma electrónica:</strong> Plena validez (Arts. 89, 89-A y 90 Código de Comercio; Art. 1803 CCF; NOM-151-SCFI-2016).</p>
+<p><strong>Jurisdicción:</strong> Tribunales de Monterrey, Nuevo León, México (Art. 23 CFPC).</p>
+<p><strong>Legislación aplicable:</strong> CCF (Arts. 1792-1859 y 2606-2615), Código de Comercio, LISR, LIVA, LFDA, LFT, CFF, LFPDPPP y NOM-151-SCFI-2016.</p></div>
+
+<p style="text-align:center;margin:24px 0 4px;font-size:12px;color:var(--gris)">Leído y ratificado en San Pedro Garza García, Nuevo León, México — ${d.fecha_firma||''}.</p>
+
+<div class="firma-section">
+  <div class="firma-titulo">Firmas de las partes</div>
+  <div class="firma-grid">
+    <div class="firma-col">
+      <div class="firma-img-box">${d.firma_prestador?`<img src="${d.firma_prestador}" style="max-height:70px;max-width:100%;object-fit:contain">`:'<span style="font-size:11px;color:var(--gris2)">Firma del Prestador</span>'}</div>
+      <div class="firma-nombre">Héctor Orlando Aguirre Ramírez</div>
+      <div class="firma-cargo">Socio Director</div>
+      <div class="firma-empresa">HAG Asesores, S.C. (Aguirre &amp; Ceballos)</div>
+      <div class="firma-empresa">RFC: HAS250903NT4</div>
+    </div>
+    <div class="firma-col">
+      <div class="firma-img-box" id="firma-cliente-preview"><span style="font-size:11px;color:var(--gris2)">Pendiente firma del cliente</span></div>
+      <div class="firma-nombre">${d.representante||''}</div>
+      <div class="firma-cargo">${d.cargo_rep||'Representante Legal'}</div>
+      <div class="firma-empresa">${d.razon_social||''}</div>
+      <div class="firma-empresa">RFC: ${d.rfc||''}</div>
+    </div>
+  </div>
+</div>`;
+}
+
+function renderContratoCliente(d){
+  document.getElementById('contrato-cliente-render').innerHTML=buildContratoHTML(d);
+}
+
+// ── FIRMAR COMO CLIENTE ──────────────────────────────────────────
+async function firmarComoCliente(){
+  if(!sigState.cliente){alert('Por favor traza tu firma antes de continuar');return;}
+  showLoading('Registrando tu firma…');
+  try{
+    const sigData=getSig('cliente');
+    const{error}=await db.from('contratos').update({
+      firma_cliente:sigData,
+      estatus:'firmado',
+      firmado_at:new Date().toISOString(),
+    }).eq('id',contratoId);
+    if(error)throw error;
+    const dataCompleta={...contratoData,firma_cliente:sigData};
+    showLoading('Generando PDF…');
+    await generarPDFFinal(dataCompleta);
+    hideLoading();
+    document.getElementById('s-cliente').classList.remove('active');
+    document.getElementById('s-success-cliente').classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){hideLoading();console.error(e);alert('Error al procesar la firma: '+e.message);}
+}
+
+// ── GENERAR PDF FINAL ────────────────────────────────────────────
+async function generarPDFFinal(d){
+  const{PDFDocument,rgb,StandardFonts}=PDFLib;
+  const pdf=await PDFDocument.create();
+  const fB=await pdf.embedFont(StandardFonts.HelveticaBold);
+  const fR=await pdf.embedFont(StandardFonts.Helvetica);
+  const fI=await pdf.embedFont(StandardFonts.HelveticaOblique);
+  const sigP=await pdf.embedPng(d.firma_prestador);
+  const sigC=await pdf.embedPng(d.firma_cliente);
+  const W=612,H=792,ML=52,MR=560,LW=MR-ML;
+  const GOLD=rgb(0.784,0.659,0.298),NEGRO=rgb(0.039,0.039,0.039),GRIS=rgb(0.42,0.42,0.42),CREAM=rgb(0.941,0.922,0.878);
+  const monto=d.monto,iva=d.incluye_iva;
+  const total=iva?monto:monto*1.16,base=iva?monto/1.16:monto;
+  const ivaStr=iva?'IVA incluido':'más IVA 16%';
+  const fechaVenc=calcFechaVenc(d.fecha_inicio,d.vigencia);
+  const folio=d.folio||generarFolio();
+
+  const addPg=()=>{
+    const p=pdf.addPage([W,H]);
+    p.drawRectangle({x:0,y:H-38,width:W,height:38,color:NEGRO});
+    p.drawRectangle({x:0,y:H-41,width:W,height:3,color:GOLD});
+    p.drawText('HAG ASESORES, S.C. — AGUIRRE & CEBALLOS',{x:ML,y:H-24,size:8.5,font:fB,color:GOLD});
+    p.drawText('Liridicum · Tributa · Consilium',{x:MR-118,y:H-24,size:7.5,font:fI,color:rgb(0.75,0.75,0.75)});
+    p.drawRectangle({x:0,y:0,width:W,height:22,color:NEGRO});
+    p.drawText('Av. Ricardo Margain Zozaya 444 · San Pedro Garza García, N.L. · admin@aguirreceballos.com · (844) 244-2007',{x:ML,y:7,size:6.5,font:fR,color:rgb(0.65,0.65,0.65)});
+    return p;
+  };
+  const wrap=(pg,txt,x,y,maxW,sz,font,color=NEGRO,lh=13)=>{
+    const words=txt.split(' ');let line='',cy=y;
+    for(const w of words){const t=line?line+' '+w:w;if(font.widthOfTextAtSize(t,sz)>maxW&&line){pg.drawText(line,{x,y:cy,size:sz,font,color});line=w;cy-=lh;}else line=t;}
+    if(line){pg.drawText(line,{x,y:cy,size:sz,font,color});cy-=lh;}return cy;
+  };
+
+  let pg=addPg();let y=H-58;
+  pg.drawText('CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES',{x:ML,y,size:10,font:fB,color:NEGRO});y-=14;
+  pg.drawText((d.tipo==='legal'?'Servicios Legales':'Servicios Contables y Fiscales')+' — '+(d.materias||[]).join(', '),{x:ML,y,size:8,font:fI,color:GRIS,maxWidth:LW});y-=14;
+  pg.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:1,color:NEGRO});y-=14;
+  pg.drawRectangle({x:ML,y:y-68,width:LW,height:76,color:CREAM,borderColor:rgb(0.8,0.77,0.7),borderWidth:0.5});
+  const filas=[['Folio:',folio],['Partes:','EL PRESTADOR: HAG Asesores, S.C. (RFC: HAS250903NT4) / EL CLIENTE: '+d.razon_social+' (RFC: '+d.rfc+')'],['Honorarios:',fmtMXN(monto)+' mensuales '+ivaStr+' — Total mensual: '+fmtMXN(total)],['Vigencia:',d.fecha_inicio+' al '+fechaVenc+' ('+d.vigencia+' meses) · Día de pago: día '+d.dia_pago]];
+  let by=y-10;
+  for(const[l,v]of filas){pg.drawText(l,{x:ML+6,y:by,size:7.5,font:fB,color:GRIS});by=wrap(pg,v,ML+60,by,LW-66,7.5,fR,NEGRO,11);by-=2;}
+  y-=84;
+
+  const clausulas=[
+    ['DECLARACIONES PREVIAS',`EL PRESTADOR: HAG ASESORES, S.C., RFC HAS250903NT4, Av. Ricardo Margain Zozaya 444, San Pedro Garza García, N.L., representada por HÉCTOR ORLANDO AGUIRRE RAMÍREZ, Socio Director. EL CLIENTE: ${(d.razon_social||'').toUpperCase()}, RFC ${d.rfc}, domicilio: ${d.domicilio}, representado/a por ${(d.representante||'').toUpperCase()}, ${d.cargo_rep||'Representante Legal'}.`],
+    ['CLÁUSULA PRIMERA — OBJETO',`Prestación de servicios ${d.tipo==='legal'?'legales':'contables y fiscales'} en: ${(d.materias||[]).join(', ')}. Fundamento: Arts. 2606-2615 CCF. Servicios intuitu personae.`],
+    ['CLÁUSULA SEGUNDA — ALCANCES',(d.alcances||[]).map((a,i)=>`${i+1}) ${a}`).join('. ')+(d.observaciones?' Condiciones especiales: '+d.observaciones:'')],
+    ['CLÁUSULA TERCERA — HONORARIOS',`${fmtMXN(monto)} (${numALetras(Math.round(monto))} pesos 00/100 M.N.) mensuales ${ivaStr}. Total mensual: ${fmtMXN(total)}. Pago: día ${d.dia_pago}, mediante ${d.forma_pago}. CFDI en 3 días hábiles (Arts. 29 y 29-A CFF). Retención ISR (Arts. 100-110 LISR) e IVA (Arts. 14 y 17 LIVA).`],
+    ['CLÁUSULA CUARTA — MORA E INTERESES',`Intereses moratorios 2.5% mensual sobre saldo insoluto (Art. 362 Cód. Comercio). Atraso >15 días: suspensión de servicios. Atraso >30 días: rescisión de pleno derecho (Art. 1949 CCF).`],
+    ['CLÁUSULA QUINTA — VIGENCIA',`${d.vigencia} meses. Inicio: ${d.fecha_inicio}. Vencimiento: ${fechaVenc}. Renovación automática salvo aviso con ${d.preaviso} días. Terminación anticipada sin causa: honorarios proporcionales + 1 mes compensación (Art. 1915 CCF).`],
+    ['CLÁUSULA SEXTA — CONFIDENCIALIDAD',`Información del CLIENTE estrictamente confidencial. Uso exclusivo para fines del contrato. Observancia LFPDPPP. Subsiste 3 años post-terminación.`],
+    ['CLÁUSULA SÉPTIMA — PROPIEDAD INTELECTUAL',`Productos intelectuales: propiedad exclusiva de EL PRESTADOR (Arts. 6, 13, 163-165 LFDA). EL CLIENTE: licencia de uso no exclusiva e intransferible.`],
+    ['CLÁUSULA OCTAVA — INDEPENDENCIA',`Sin relación laboral (Arts. 8 y 20 LFT). EL CLIENTE no es patrón sustituto (Art. 14 LFT; Art. 26 CFF). EL PRESTADOR responsable de obligaciones laborales, IMSS e INFONAVIT de su personal.`],
+    ['CLÁUSULA NOVENA — LÍMITE DE RESPONSABILIDAD',`Daños directos por dolo o culpa grave únicamente (Art. 2111 CCF). Sin responsabilidad por daños indirectos o cambios legislativos. Tope máximo: 3 mensualidades.`],
+    ['CLÁUSULA DÉCIMA — OBLIGACIONES',`PRESTADOR: diligencia (Art. 2606 CCF), actualización, CFDI oportuno, secreto profesional. CLIENTE: información veraz, pago puntual, retención ISR, notificación de requerimientos, no contratar personal del PRESTADOR por 12 meses post-terminación.`],
+    ['CLÁUSULAS 11-16 — DISPOSICIONES GENERALES',`Caso fortuito/fuerza mayor: sin responsabilidad (Art. 2111 CCF); notificación en 5 días hábiles; terminación si supera 60 días. Cesión: prohibida sin consentimiento escrito (Art. 2031 CCF). Modificaciones: solo por addendum escrito. Firma electrónica: plena validez (Arts. 89, 89-A, 90 Cód. Comercio; NOM-151-SCFI-2016). Jurisdicción: Monterrey, N.L. (Art. 23 CFPC). Legislación: CCF, Cód. Comercio, LISR, LIVA, LFDA, LFT, CFF, LFPDPPP, NOM-151-SCFI-2016.`],
+  ];
+
+  for(const[tit,txt]of clausulas){
+    if(y<100){pg=addPg();y=H-55;}
+    pg.drawRectangle({x:ML,y:y-1,width:3,height:12,color:GOLD});
+    pg.drawText(tit,{x:ML+8,y,size:8,font:fB,color:NEGRO});y-=14;
+    const ny=wrap(pg,txt,ML,y,LW,7.8,fR,rgb(0.12,0.12,0.12),12);y=ny-10;
+    if(y<80){pg=addPg();y=H-55;}
+  }
+
+  // PÁGINA FIRMAS
+  pg=addPg();y=H-55;
+  pg.drawText('FIRMAS DE LAS PARTES — CONTRATO FIRMADO DIGITALMENTE',{x:ML,y,size:9.5,font:fB,color:NEGRO});y-=8;
+  pg.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:0.8,color:NEGRO});y-=14;
+  pg.drawText(`Firmado en ${d.lugar_firma||'San Pedro Garza García, N.L.'}, el ${d.firmado_at?new Date(d.firmado_at).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}):d.fecha_firma||''}.`,{x:ML,y,size:8,font:fI,color:GRIS});y-=28;
+  const fw=(LW-20)/2,fx1=ML,fx2=ML+fw+20,sigBoxH=90;
+  pg.drawRectangle({x:fx1,y:y-sigBoxH,width:fw,height:sigBoxH,color:rgb(0.99,0.99,0.99),borderColor:rgb(0.75,0.75,0.75),borderWidth:0.4});
+  pg.drawRectangle({x:fx2,y:y-sigBoxH,width:fw,height:sigBoxH,color:rgb(0.99,0.99,0.99),borderColor:rgb(0.75,0.75,0.75),borderWidth:0.4});
+  const sdW=Math.min(fw-20,sigP.width/1.8),sdH=sdW*(sigP.height/sigP.width);
+  const scW=Math.min(fw-20,sigC.width/1.8),scH=scW*(sigC.height/sigC.width);
+  pg.drawImage(sigP,{x:fx1+(fw-sdW)/2,y:y-sigBoxH+(sigBoxH-sdH)/2,width:sdW,height:sdH});
+  pg.drawImage(sigC,{x:fx2+(fw-scW)/2,y:y-sigBoxH+(sigBoxH-scH)/2,width:scW,height:scH});
+  y-=sigBoxH+4;
+  pg.drawLine({start:{x:fx1+8,y},end:{x:fx1+fw-8,y},thickness:0.8,color:NEGRO});
+  pg.drawLine({start:{x:fx2+8,y},end:{x:fx2+fw-8,y},thickness:0.8,color:NEGRO});
+  y-=13;
+  for(const[fx,n,c,e,r]of[[fx1,'Héctor Orlando Aguirre Ramírez','Socio Director','HAG Asesores, S.C.','RFC: HAS250903NT4'],[fx2,d.representante||'',d.cargo_rep||'Representante Legal',d.razon_social||'','RFC: '+(d.rfc||'')]]){
+    let cy=y;
+    pg.drawText(n,{x:fx+6,y:cy,size:8,font:fB,color:NEGRO});cy-=12;
+    pg.drawText(c,{x:fx+6,y:cy,size:7.5,font:fI,color:GRIS});cy-=11;
+    pg.drawText(e,{x:fx+6,y:cy,size:7.5,font:fR,color:GRIS});cy-=11;
+    pg.drawText(r,{x:fx+6,y:cy,size:7.5,font:fR,color:GRIS});
+  }
+  y-=58;
+  pg.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:0.3,color:rgb(0.8,0.8,0.8)});y-=12;
+  pg.drawText('Correo del cliente: '+(d.email||''),{x:ML,y,size:7,font:fR,color:GRIS});y-=11;
+  wrap(pg,'Documento firmado electrónicamente. Firma digital con validez conforme al Art. 89 del Código de Comercio y la NOM-151-SCFI-2016.',ML,y,LW,6.8,fI,GRIS,10);
+  pg.drawRectangle({x:MR-108,y:y-36,width:108,height:40,color:NEGRO});
+  pg.drawText('AGUIRRE & CEBALLOS',{x:MR-104,y:y-16,size:7,font:fB,color:GOLD});
+  pg.drawText('Liridicum · Tributa · Consilium',{x:MR-104,y:y-27,size:5.8,font:fI,color:rgb(0.7,0.7,0.7)});
+  pg.drawText('admin@aguirreceballos.com',{x:MR-104,y:y-37,size:5.5,font:fR,color:rgb(0.6,0.6,0.6)});
+
+  const bytes=await pdf.save();
+  const blob=new Blob([bytes],{type:'application/pdf'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download='Contrato_AC_'+(d.razon_social||'').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)+'_'+new Date().toISOString().slice(0,10)+'.pdf';
+  a.click();URL.revokeObjectURL(url);
+}
+
+// ── NUEVO CONTRATO ───────────────────────────────────────────────
+function nuevoContrato(){
+  D.tipo='';D.materias=[];D.alcances=[];alcId=0;contratoId=null;contratoData=null;
+  document.querySelectorAll('input,textarea').forEach(el=>el.value='');
+  document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
+  document.querySelectorAll('.tipo-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelectorAll('.materia-chip').forEach(c=>c.classList.remove('sel'));
+  document.getElementById('alcances-list').innerHTML='';
+  document.getElementById('materias-legal').style.display='none';
+  document.getElementById('materias-contable').style.display='none';
+  clearCanvas('prestador');clearCanvas('cliente');
+  const hoy=new Date();
+  document.getElementById('firma-fecha').value=`${hoy.getDate()} de ${MESES[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+  document.getElementById('h-fecha').value=`1 de ${MESES[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+  document.getElementById('firma-lugar').value='San Pedro Garza García, Nuevo León, México';
+  addAlcance();addAlcance();addAlcance();
+  for(let i=1;i<=5;i++){document.getElementById('s'+i)?.classList.remove('active');const st=document.getElementById('step-'+i);if(st)st.classList.remove('active','done');}
+  document.getElementById('step-1').classList.add('active');
+  document.getElementById('s1').classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
