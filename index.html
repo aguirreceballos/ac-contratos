@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contratos Digitales — Aguirre & Ceballos</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
 // ══════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════════════════
@@ -12,20 +13,7 @@ const DASH_PWD = 'ac2026';  // ← cambia esta contraseña cuando quieras
 let todosContratos = [];
 let contratoModalData = null;
 
-// Detectar modo dashboard
-const _params = new URLSearchParams(window.location.search);
-if(_params.has('dashboard')){
-  document.getElementById('steps-bar').style.display='none';
-  document.getElementById('header-badge').textContent='Dashboard';
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  // Ver si ya está autenticado en sesión
-  if(sessionStorage.getItem('dash_auth')==='1'){
-    document.getElementById('s-dashboard').classList.add('active');
-    cargarDashboard();
-  } else {
-    document.getElementById('s-dash-login').classList.add('active');
-  }
-}
+// Dashboard: detección al cargar DOM (ver DOMContentLoaded)
 
 function loginDash(){
   const pwd = document.getElementById('dash-pwd').value;
@@ -575,6 +563,27 @@ canvas{display:block;width:100%;height:160px;cursor:crosshair;touch-action:none}
       </div>
       <div class="canvas-actions"><button class="btn-rm" onclick="clearCanvas('cliente')">Borrar</button></div>
       <div class="nota-blue" style="margin-top:16px">🔏 Esta firma electrónica tiene plena validez conforme al Art. 89 del Código de Comercio y la NOM-151-SCFI-2016. Al firmar, ambas partes recibirán el PDF completo.</div>
+      <!-- FOTO DE VERIFICACIÓN -->
+      <div style="margin-top:20px">
+        <label style="margin-bottom:10px;display:block">📸 Foto de verificación de identidad</label>
+        <div id="cam-wrap" style="border:2px dashed var(--border);border-radius:8px;background:#FAFAFA;overflow:hidden;position:relative;min-height:140px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:16px">
+          <video id="cam-video" autoplay playsinline muted style="display:none;width:100%;max-height:200px;object-fit:cover;border-radius:4px"></video>
+          <canvas id="cam-canvas" width="640" height="480" style="display:none"></canvas>
+          <img id="cam-foto" style="display:none;width:100%;max-height:200px;object-fit:cover;border-radius:4px">
+          <div id="cam-idle" style="text-align:center;padding:8px 0">
+            <div style="font-size:30px;margin-bottom:8px">📷</div>
+            <div style="font-size:13px;color:var(--gris);margin-bottom:12px;line-height:1.6">Se tomará una foto de verificación de identidad.<br>Quedará incrustada en el PDF como constancia.</div>
+            <button class="btn-primary" onclick="iniciarCamara()" style="font-size:12px;padding:9px 20px">Activar cámara</button>
+          </div>
+          <div id="cam-live" style="display:none;width:100%;text-align:center">
+            <button class="btn-gold" onclick="tomarFoto()" style="font-size:12px;padding:9px 20px;margin-top:8px">📸 Tomar foto ahora</button>
+          </div>
+          <div id="cam-done" style="display:none;width:100%;text-align:center">
+            <div style="font-size:12px;color:var(--green);font-weight:600;margin-bottom:8px">✓ Foto capturada</div>
+            <button class="btn-rm" onclick="retomarFoto()" style="font-size:12px">↺ Tomar otra</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="actions-row">
@@ -689,14 +698,31 @@ window.addEventListener('DOMContentLoaded',()=>{
   initCanvas('cliente');
   addAlcance();addAlcance();addAlcance();
 
-  // Detectar si es modo cliente (URL tiene ?id=xxx)
+  // ── Detectar modo al cargar ──
   const params=new URLSearchParams(window.location.search);
-  const id=params.get('id');
-  if(id){
+  const idParam=params.get('id');
+  const esDash=params.has('dashboard');
+
+  if(esDash){
+    // MODO DASHBOARD
+    document.getElementById('steps-bar').style.display='none';
+    document.getElementById('header-badge').textContent='Dashboard';
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    if(sessionStorage.getItem('dash_auth')==='1'){
+      document.getElementById('s-dashboard').classList.add('active');
+      cargarDashboard();
+    } else {
+      document.getElementById('s-dash-login').classList.add('active');
+    }
+  } else if(idParam){
+    // MODO CLIENTE
     document.getElementById('steps-bar').style.display='none';
     document.getElementById('header-badge').textContent='Firma de Contrato';
-    cargarContratoCliente(id);
+    cargarContratoCliente(idParam);
   }
+  // (si no hay parámetros = modo despacho normal, ya está en s1)
+
+
 });
 
 // ── NAVEGACIÓN ───────────────────────────────────────────────────
@@ -1142,19 +1168,73 @@ function renderContratoCliente(d){
   document.getElementById('contrato-cliente-render').innerHTML=buildContratoHTML(d);
 }
 
+
+// ── CÁMARA ───────────────────────────────────────────────────────
+let streamCam = null;
+let fotoClienteDataURL = null;
+
+async function iniciarCamara(){
+  try{
+    streamCam = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640},height:{ideal:480}},audio:false});
+    const video = document.getElementById('cam-video');
+    video.srcObject = streamCam;
+    video.style.display = 'block';
+    document.getElementById('cam-idle').style.display = 'none';
+    document.getElementById('cam-live').style.display = 'block';
+    document.getElementById('cam-done').style.display = 'none';
+    document.getElementById('cam-foto').style.display = 'none';
+    document.getElementById('cam-wrap').style.borderColor = 'var(--gold)';
+  }catch(e){
+    alert('No se pudo acceder a la cámara. Verifica los permisos del navegador.\n\nDetalle: '+e.message);
+  }
+}
+
+function tomarFoto(){
+  const video = document.getElementById('cam-video');
+  const canvas = document.getElementById('cam-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  fotoClienteDataURL = canvas.toDataURL('image/jpeg', 0.85);
+  // Mostrar preview
+  const foto = document.getElementById('cam-foto');
+  foto.src = fotoClienteDataURL;
+  foto.style.display = 'block';
+  video.style.display = 'none';
+  document.getElementById('cam-live').style.display = 'none';
+  document.getElementById('cam-done').style.display = 'block';
+  document.getElementById('cam-wrap').style.borderColor = 'var(--green)';
+  document.getElementById('cam-wrap').style.borderStyle = 'solid';
+  // Detener stream
+  if(streamCam){ streamCam.getTracks().forEach(t=>t.stop()); streamCam=null; }
+}
+
+function retomarFoto(){
+  fotoClienteDataURL = null;
+  document.getElementById('cam-foto').style.display = 'none';
+  document.getElementById('cam-done').style.display = 'none';
+  document.getElementById('cam-wrap').style.borderColor = 'var(--border)';
+  document.getElementById('cam-wrap').style.borderStyle = 'dashed';
+  iniciarCamara();
+}
+
+
 // ── FIRMAR COMO CLIENTE ──────────────────────────────────────────
 async function firmarComoCliente(){
   if(!sigState.cliente){alert('Por favor traza tu firma antes de continuar');return;}
   showLoading('Registrando tu firma…');
   try{
     const sigData=getSig('cliente');
-    const{error}=await db.from('contratos').update({
+    const updateData={
       firma_cliente:sigData,
       estatus:'firmado',
       firmado_at:new Date().toISOString(),
-    }).eq('id',contratoId);
+    };
+    if(fotoClienteDataURL) updateData.foto_cliente = fotoClienteDataURL;
+    const{error}=await db.from('contratos').update(updateData).eq('id',contratoId);
     if(error)throw error;
-    const dataCompleta={...contratoData,firma_cliente:sigData};
+    const dataCompleta={...contratoData,firma_cliente:sigData,foto_cliente:fotoClienteDataURL};
     showLoading('Generando PDF…');
     await generarPDFFinal(dataCompleta);
     hideLoading();
@@ -1173,13 +1253,25 @@ async function generarPDFFinal(d){
   const fI=await pdf.embedFont(StandardFonts.HelveticaOblique);
   const sigP=await pdf.embedPng(d.firma_prestador);
   const sigC=await pdf.embedPng(d.firma_cliente);
-  const W=612,H=792,ML=52,MR=560,LW=MR-ML;
-  const GOLD=rgb(0.784,0.659,0.298),NEGRO=rgb(0.039,0.039,0.039),GRIS=rgb(0.42,0.42,0.42),CREAM=rgb(0.941,0.922,0.878);
+  let imgFoto=null;
+  if(d.foto_cliente){
+    try{ imgFoto=await pdf.embedJpg(d.foto_cliente.split(',')[1]?
+      Uint8Array.from(atob(d.foto_cliente.split(',')[1]),c=>c.charCodeAt(0)):
+      await fetch(d.foto_cliente).then(r=>r.arrayBuffer())); }catch(e){}
+  }
+
+  const W=612,H=792,ML=56,MR=556,LW=500;
+  const GOLD=rgb(0.784,0.659,0.298),NEGRO=rgb(0.039,0.039,0.039),GRIS=rgb(0.42,0.42,0.42);
+  const CREAM=rgb(0.941,0.922,0.878),GRIS_L=rgb(0.95,0.95,0.95);
   const monto=d.monto,iva=d.incluye_iva;
   const total=iva?monto:monto*1.16,base=iva?monto/1.16:monto;
-  const ivaStr=iva?'IVA incluido':'más IVA 16%';
+  const ivaStr=iva?'IVA incluido':'+ IVA 16%';
   const fechaVenc=calcFechaVenc(d.fecha_inicio,d.vigencia);
   const folio=d.folio||generarFolio();
+  const vigNum=d.vigencia==='12'?'doce (12)':'veinticuatro (24)';
+  const vigLabel=d.vigencia==='12'?'un año':'dos años';
+  const materiasStr=(d.materias||[]).join(', ');
+  const tipoLabel=d.tipo==='legal'?'legales y jurídicos':'contables y fiscales';
 
   const addPg=()=>{
     const p=pdf.addPage([W,H]);
@@ -1188,80 +1280,304 @@ async function generarPDFFinal(d){
     p.drawText('HAG ASESORES, S.C. — AGUIRRE & CEBALLOS',{x:ML,y:H-24,size:8.5,font:fB,color:GOLD});
     p.drawText('Liridicum · Tributa · Consilium',{x:MR-118,y:H-24,size:7.5,font:fI,color:rgb(0.75,0.75,0.75)});
     p.drawRectangle({x:0,y:0,width:W,height:22,color:NEGRO});
-    p.drawText('Av. Ricardo Margain Zozaya 444 · San Pedro Garza García, N.L. · admin@aguirreceballos.com · (844) 244-2007',{x:ML,y:7,size:6.5,font:fR,color:rgb(0.65,0.65,0.65)});
+    p.drawText('Av. Ricardo Margain Zozaya 444 · San Pedro Garza García, N.L. · admin@aguirreceballos.com · (844) 244-2007',
+      {x:ML,y:7,size:6.5,font:fR,color:rgb(0.65,0.65,0.65)});
     return p;
   };
+
+  // Wrap text con saltos de línea automáticos
   const wrap=(pg,txt,x,y,maxW,sz,font,color=NEGRO,lh=13)=>{
-    const words=txt.split(' ');let line='',cy=y;
-    for(const w of words){const t=line?line+' '+w:w;if(font.widthOfTextAtSize(t,sz)>maxW&&line){pg.drawText(line,{x,y:cy,size:sz,font,color});line=w;cy-=lh;}else line=t;}
-    if(line){pg.drawText(line,{x,y:cy,size:sz,font,color});cy-=lh;}return cy;
+    if(!txt)return y;
+    const words=String(txt).split(' ');let line='',cy=y;
+    for(const w of words){
+      const t=line?line+' '+w:w;
+      if(font.widthOfTextAtSize(t,sz)>maxW&&line){
+        pg.drawText(line,{x,y:cy,size:sz,font,color});line=w;cy-=lh;
+        if(cy<35){pg=addPg();cy=H-55;}
+      }else line=t;
+    }
+    if(line){pg.drawText(line,{x,y:cy,size:sz,font,color});cy-=lh;}
+    return cy;
   };
 
-  let pg=addPg();let y=H-58;
-  pg.drawText('CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES',{x:ML,y,size:10,font:fB,color:NEGRO});y-=14;
-  pg.drawText((d.tipo==='legal'?'Servicios Legales':'Servicios Contables y Fiscales')+' — '+(d.materias||[]).join(', '),{x:ML,y,size:8,font:fI,color:GRIS,maxWidth:LW});y-=14;
-  pg.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:1,color:NEGRO});y-=14;
-  pg.drawRectangle({x:ML,y:y-68,width:LW,height:76,color:CREAM,borderColor:rgb(0.8,0.77,0.7),borderWidth:0.5});
-  const filas=[['Folio:',folio],['Partes:','EL PRESTADOR: HAG Asesores, S.C. (RFC: HAS250903NT4) / EL CLIENTE: '+d.razon_social+' (RFC: '+d.rfc+')'],['Honorarios:',fmtMXN(monto)+' mensuales '+ivaStr+' — Total mensual: '+fmtMXN(total)],['Vigencia:',d.fecha_inicio+' al '+fechaVenc+' ('+d.vigencia+' meses) · Día de pago: día '+d.dia_pago]];
-  let by=y-10;
-  for(const[l,v]of filas){pg.drawText(l,{x:ML+6,y:by,size:7.5,font:fB,color:GRIS});by=wrap(pg,v,ML+60,by,LW-66,7.5,fR,NEGRO,11);by-=2;}
-  y-=84;
+  // Dibujar cláusula con título y texto
+  let currentPage=addPg();
+  let y=H-55;
 
+  const drawTitulo=(pg,txt,yy)=>{
+    pg.drawRectangle({x:ML,y:yy-1,width:3,height:12,color:GOLD});
+    pg.drawText(txt,{x:ML+8,y:yy,size:8.5,font:fB,color:NEGRO});
+    return yy-16;
+  };
+
+  const drawParagraph=(pg,txt,yy,indent=0)=>{
+    const ny=wrap(pg,txt,ML+indent,yy,LW-indent,8,fR,rgb(0.1,0.1,0.1),12.5);
+    return ny-5;
+  };
+
+  const checkPage=(pg,yy,needed=80)=>{
+    if(yy<needed){
+      const np=addPg();
+      return[np,H-55];
+    }
+    return[pg,yy];
+  };
+
+  // ── PORTADA ──────────────────────────────────────────────────────
+  // Header especial portada
+  currentPage.drawRectangle({x:0,y:H-80,width:W,height:80,color:NEGRO});
+  currentPage.drawRectangle({x:0,y:H-83,width:W,height:3,color:GOLD});
+  currentPage.drawText('HAG ASESORES, S.C.',{x:W/2-60,y:H-32,size:13,font:fB,color:GOLD});
+  currentPage.drawText('Liridicum · Tributa · Consilium',{x:W/2-72,y:H-50,size:8,font:fI,color:rgb(0.75,0.75,0.75)});
+  currentPage.drawText('Aguirre & Ceballos',{x:W/2-44,y:H-64,size:8,font:fR,color:rgb(0.65,0.65,0.65)});
+
+  y=H-108;
+  currentPage.drawText('CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES',{x:ML,y,size:11,font:fB,color:NEGRO});
+  y-=16;
+  currentPage.drawText((d.tipo==='legal'?'Servicios Legales':'Servicios Contables y Fiscales')+' — '+materiasStr,
+    {x:ML,y,size:8.5,font:fI,color:GRIS,maxWidth:LW});
+  y-=12;
+  currentPage.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:1,color:NEGRO});
+  y-=14;
+
+  // Box de datos generales
+  currentPage.drawRectangle({x:ML,y:y-82,width:LW,height:90,color:CREAM,borderColor:rgb(0.8,0.77,0.7),borderWidth:0.5});
+  const filas=[
+    ['Folio del instrumento:', folio],
+    ['Fecha de elaboración:', new Date().toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'})],
+    ['Partes:', 'EL PRESTADOR: HAG Asesores, S.C. (RFC: HAS250903NT4) / EL CLIENTE: '+(d.razon_social||'')+' (RFC: '+(d.rfc||'')+')'],
+    ['Honorarios:', fmtMXN(monto)+' mensuales '+ivaStr+' — Total mensual: '+fmtMXN(total)],
+    ['Vigencia pactada:', d.fecha_inicio+' al '+fechaVenc+' ('+vigNum+' meses — '+vigLabel+')'],
+  ];
+  let by=y-10;
+  for(const[l,v]of filas){
+    currentPage.drawText(l,{x:ML+6,y:by,size:7.5,font:fB,color:GRIS});
+    const ny=wrap(currentPage,v,ML+140,by,LW-145,7.5,fR,NEGRO,11);
+    by=Math.min(by,ny)-1;
+  }
+  y-=96;
+  [currentPage,y]=checkPage(currentPage,y);
+
+  // ── CLÁUSULAS COMPLETAS ──────────────────────────────────────────
   const clausulas=[
-    ['DECLARACIONES PREVIAS',`EL PRESTADOR: HAG ASESORES, S.C., RFC HAS250903NT4, Av. Ricardo Margain Zozaya 444, San Pedro Garza García, N.L., representada por HÉCTOR ORLANDO AGUIRRE RAMÍREZ, Socio Director. EL CLIENTE: ${(d.razon_social||'').toUpperCase()}, RFC ${d.rfc}, domicilio: ${d.domicilio}, representado/a por ${(d.representante||'').toUpperCase()}, ${d.cargo_rep||'Representante Legal'}.`],
-    ['CLÁUSULA PRIMERA — OBJETO',`Prestación de servicios ${d.tipo==='legal'?'legales':'contables y fiscales'} en: ${(d.materias||[]).join(', ')}. Fundamento: Arts. 2606-2615 CCF. Servicios intuitu personae.`],
-    ['CLÁUSULA SEGUNDA — ALCANCES',(d.alcances||[]).map((a,i)=>`${i+1}) ${a}`).join('. ')+(d.observaciones?' Condiciones especiales: '+d.observaciones:'')],
-    ['CLÁUSULA TERCERA — HONORARIOS',`${fmtMXN(monto)} (${numALetras(Math.round(monto))} pesos 00/100 M.N.) mensuales ${ivaStr}. Total mensual: ${fmtMXN(total)}. Pago: día ${d.dia_pago}, mediante ${d.forma_pago}. CFDI en 3 días hábiles (Arts. 29 y 29-A CFF). Retención ISR (Arts. 100-110 LISR) e IVA (Arts. 14 y 17 LIVA).`],
-    ['CLÁUSULA CUARTA — MORA E INTERESES',`Intereses moratorios 2.5% mensual sobre saldo insoluto (Art. 362 Cód. Comercio). Atraso >15 días: suspensión de servicios. Atraso >30 días: rescisión de pleno derecho (Art. 1949 CCF).`],
-    ['CLÁUSULA QUINTA — VIGENCIA',`${d.vigencia} meses. Inicio: ${d.fecha_inicio}. Vencimiento: ${fechaVenc}. Renovación automática salvo aviso con ${d.preaviso} días. Terminación anticipada sin causa: honorarios proporcionales + 1 mes compensación (Art. 1915 CCF).`],
-    ['CLÁUSULA SEXTA — CONFIDENCIALIDAD',`Información del CLIENTE estrictamente confidencial. Uso exclusivo para fines del contrato. Observancia LFPDPPP. Subsiste 3 años post-terminación.`],
-    ['CLÁUSULA SÉPTIMA — PROPIEDAD INTELECTUAL',`Productos intelectuales: propiedad exclusiva de EL PRESTADOR (Arts. 6, 13, 163-165 LFDA). EL CLIENTE: licencia de uso no exclusiva e intransferible.`],
-    ['CLÁUSULA OCTAVA — INDEPENDENCIA',`Sin relación laboral (Arts. 8 y 20 LFT). EL CLIENTE no es patrón sustituto (Art. 14 LFT; Art. 26 CFF). EL PRESTADOR responsable de obligaciones laborales, IMSS e INFONAVIT de su personal.`],
-    ['CLÁUSULA NOVENA — LÍMITE DE RESPONSABILIDAD',`Daños directos por dolo o culpa grave únicamente (Art. 2111 CCF). Sin responsabilidad por daños indirectos o cambios legislativos. Tope máximo: 3 mensualidades.`],
-    ['CLÁUSULA DÉCIMA — OBLIGACIONES',`PRESTADOR: diligencia (Art. 2606 CCF), actualización, CFDI oportuno, secreto profesional. CLIENTE: información veraz, pago puntual, retención ISR, notificación de requerimientos, no contratar personal del PRESTADOR por 12 meses post-terminación.`],
-    ['CLÁUSULAS 11-16 — DISPOSICIONES GENERALES',`Caso fortuito/fuerza mayor: sin responsabilidad (Art. 2111 CCF); notificación en 5 días hábiles; terminación si supera 60 días. Cesión: prohibida sin consentimiento escrito (Art. 2031 CCF). Modificaciones: solo por addendum escrito. Firma electrónica: plena validez (Arts. 89, 89-A, 90 Cód. Comercio; NOM-151-SCFI-2016). Jurisdicción: Monterrey, N.L. (Art. 23 CFPC). Legislación: CCF, Cód. Comercio, LISR, LIVA, LFDA, LFT, CFF, LFPDPPP, NOM-151-SCFI-2016.`],
+    {
+      tit:'Antecedentes y Declaraciones de las Partes',
+      parrafos:[
+        'En la Ciudad de San Pedro Garza García, Estado de Nuevo León, México, comparecen a la celebración del presente Contrato de Prestación de Servicios Profesionales:',
+        'I. EL PRESTADOR: HAG ASESORES, SOCIEDAD CIVIL, persona moral debidamente constituida conforme a las leyes de los Estados Unidos Mexicanos, RFC número HAS250903NT4, con domicilio fiscal en Avenida Ricardo Margain Zozaya número 444, Corporativo Santa Engracia, Primer Sector, C.P. 66267, San Pedro Garza García, Nuevo León, representada por el C. HÉCTOR ORLANDO AGUIRRE RAMÍREZ, Socio Director, con cédula profesional vigente, quien manifiesta: (a) tener personalidad y facultades suficientes para suscribir este instrumento; (b) que Aguirre & Ceballos es un despacho especializado en derecho laboral, fiscal, corporativo y comercio exterior; (c) contar con la capacidad técnica y profesional para prestar los servicios con la calidad que la lex artis de la profesión exige.',
+        'II. EL CLIENTE: '+(d.razon_social||'').toUpperCase()+', RFC '+(d.rfc||'')+', domicilio: '+(d.domicilio||'')+', representado/a por '+(d.representante||'').toUpperCase()+', '+(d.cargo_rep||'Representante Legal')+', quien manifiesta: (a) tener plena capacidad jurídica y las facultades necesarias para celebrar este contrato; (b) requerir los servicios profesionales objeto del presente instrumento; (c) estar en posibilidad de cumplir con todas las obligaciones que el contrato le impone.',
+        'Reconocidas mutuamente las declaraciones anteriores, libres de todo dolo, error o vicio del consentimiento, las partes se obligan a lo siguiente:',
+      ]
+    },
+    {
+      tit:'Cláusula Primera — Objeto del Contrato',
+      parrafos:[
+        '1.1 Objeto principal. El presente Contrato tiene por objeto la prestación de servicios profesionales especializados de carácter '+tipoLabel+' por parte de EL PRESTADOR a favor de EL CLIENTE, de conformidad con los artículos 2606 al 2615 del Código Civil Federal.',
+        '1.2 Áreas de servicio. Los servicios comprenden las siguientes materias: '+materiasStr+'. La selección responde a las necesidades específicas manifestadas por EL CLIENTE al momento de la celebración de este instrumento.',
+        '1.3 Naturaleza. Los servicios son de naturaleza intuitu personae. EL PRESTADOR podrá apoyarse en colaboradores de Aguirre & Ceballos sin que ello modifique sus obligaciones ni cree vínculo laboral entre dichos colaboradores y EL CLIENTE.',
+        '1.4 Alcance temporal. Los servicios se prestarán de manera continua durante toda la vigencia. El presente es un contrato de asesoría permanente y resultados, no de honorarios por hora.',
+      ]
+    },
+    {
+      tit:'Cláusula Segunda — Alcances Específicos del Servicio',
+      parrafos:[
+        '2.1 Descripción. Los servicios comprenden de manera enunciativa mas no limitativa los siguientes alcances específicos acordados por las partes: '+(d.alcances||[]).map((a,i)=>`${i+1}) ${a}`).join('; ')+'.',
+        '2.2 Servicios adicionales. Cualquier servicio adicional no comprendido expresamente en el listado anterior requerirá addendum escrito en el que se pactarán los honorarios correspondientes. EL PRESTADOR no estará obligado a prestarlo sin dicho addendum previo.'+(d.observaciones?'  2.3 Condiciones especiales: '+d.observaciones:''),
+      ]
+    },
+    {
+      tit:'Cláusula Tercera — Honorarios Profesionales y Forma de Pago',
+      parrafos:[
+        '3.1 Monto. EL CLIENTE pagará '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.) por mes calendario, '+( iva?'cantidad que incluye el IVA del 16%, equivalente a subtotal de '+fmtMXN(base)+' más IVA de '+fmtMXN(base*0.16):'a la que se adicionará el IVA al 16%, resultando un total mensual de '+fmtMXN(total))+', en términos de los artículos 14 y 17 de la Ley del Impuesto al Valor Agregado.',
+        '3.2 Fecha y forma. Los honorarios deberán cubrirse a más tardar el día '+d.dia_pago+' de cada mes calendario mediante '+d.forma_pago+', a partir del '+d.fecha_inicio+'. Los datos bancarios se proporcionarán por EL PRESTADOR al inicio de la relación.',
+        '3.3 CFDI. EL PRESTADOR emitirá el Comprobante Fiscal Digital por Internet (CFDI) dentro de los tres días hábiles siguientes a la recepción de cada pago, conforme a los artículos 29 y 29-A del Código Fiscal de la Federación.',
+        '3.4 Retenciones. EL CLIENTE, como persona moral retenedora, retendrá el ISR sobre honorarios profesionales conforme a los artículos 100 al 110 de la LISR, lo enterará al SAT en los plazos legales y entregará a EL PRESTADOR las constancias de retención a más tardar en febrero del ejercicio siguiente.',
+        '3.5 Ajuste anual. Los honorarios podrán revisarse anualmente por mutuo acuerdo escrito, tomando como referencia la variación del INPC publicado por el Banco de México.',
+      ]
+    },
+    {
+      tit:'Cláusula Cuarta — Mora e Intereses Moratorios',
+      parrafos:[
+        '4.1 Intereses. El atraso en el pago generará de pleno derecho intereses moratorios al 2.5% mensual sobre el saldo insoluto desde el día siguiente al vencimiento, sin requerimiento previo, conforme al artículo 362 del Código de Comercio.',
+        '4.2 Suspensión de servicios. Si el atraso supera quince (15) días naturales, EL PRESTADOR podrá suspender de manera inmediata todos los servicios sin responsabilidad. Los trámites en curso que se vean afectados serán responsabilidad exclusiva de EL CLIENTE.',
+        '4.3 Rescisión. Si el atraso excede treinta (30) días naturales, EL PRESTADOR podrá rescindir el contrato de pleno derecho mediante notificación escrita, sin perjuicio de ejercer acciones de cobro de honorarios, intereses y gastos de cobranza (Art. 1949 CCF).',
+        '4.4 Imputación de pagos. Los pagos parciales se aplicarán en el orden siguiente: primero gastos de cobranza, segundo intereses moratorios causados, tercero capital insoluto, conforme al artículo 2094 del Código Civil Federal.',
+      ]
+    },
+    {
+      tit:'Cláusula Quinta — Vigencia, Renovación y Terminación',
+      parrafos:[
+        '5.1 Vigencia. El presente contrato tendrá una vigencia de '+vigNum+' meses, del '+d.fecha_inicio+' al '+fechaVenc+' ('+vigLabel+').',
+        '5.2 Renovación automática. Al vencimiento, el contrato se prorrogará automáticamente por períodos iguales, salvo que cualquiera de las partes notifique por escrito su decisión de no renovarlo con al menos '+d.preaviso+' días naturales de anticipación.',
+        '5.3 Terminación anticipada. Cualquiera de las partes podrá dar por terminado el contrato con '+d.preaviso+' días de aviso escrito. Si es EL CLIENTE quien termina sin causa justificada, deberá pagar honorarios proporcionales al mes en curso más un (1) mes completo como compensación (Art. 1915 CCF).',
+        '5.4 Causas justificadas de terminación sin penalización: (a) incumplimiento grave de la otra parte; (b) quiebra o concurso mercantil del CLIENTE; (c) muerte o incapacidad total del profesionista responsable; (d) fuerza mayor que imposibilite la continuación del servicio.',
+      ]
+    },
+    {
+      tit:'Cláusula Sexta — Confidencialidad y Protección de Datos',
+      parrafos:[
+        '6.1 Confidencialidad. Toda la información que EL CLIENTE proporcione a EL PRESTADOR —financiera, fiscal, corporativa, estratégica, de personal, de clientes, proveedores, secretos industriales y cualquier dato sensible— es estrictamente confidencial.',
+        '6.2 Obligaciones del Prestador. EL PRESTADOR se obliga a: (a) no revelar ni divulgar la información a terceros salvo requerimiento de autoridad competente; (b) usarla exclusivamente para los fines del contrato; (c) implementar medidas de seguridad física, técnica y administrativa adecuadas; (d) observar la LFPDPPP y su Reglamento; (e) hacer extensivas estas obligaciones a todos sus colaboradores.',
+        '6.3 Duración. La obligación de confidencialidad subsiste durante tres (3) años posteriores a la terminación del contrato por cualquier causa.',
+        '6.4 Incumplimiento. El incumplimiento genera responsabilidad por daños y perjuicios (Arts. 1915 y 2116 CCF) y las sanciones de la LFPDPPP.',
+      ]
+    },
+    {
+      tit:'Cláusula Séptima — Propiedad Intelectual',
+      parrafos:[
+        '7.1 Titularidad. Los dictámenes, opiniones, estrategias, memorandos, modelos y demás productos intelectuales elaborados por EL PRESTADOR son de su exclusiva propiedad, conforme a los artículos 6, 13, 163 y 165 de la Ley Federal del Derecho de Autor.',
+        '7.2 Licencia. EL CLIENTE tendrá licencia de uso no exclusiva, intransferible e irrevocable sobre dichos productos, únicamente para los fines específicos del presente contrato. Queda prohibida su reproducción, distribución o comercialización sin consentimiento escrito de EL PRESTADOR.',
+      ]
+    },
+    {
+      tit:'Cláusula Octava — Independencia y Ausencia de Relación Laboral',
+      parrafos:[
+        '8.1 Naturaleza. Este contrato es de naturaleza civil y mercantil. No crea, bajo ninguna circunstancia, relación laboral ni subordinación entre las partes, conforme a los artículos 8 y 20 de la Ley Federal del Trabajo.',
+        '8.2 Autonomía. EL PRESTADOR actúa con plena libertad técnica y jurídica. EL CLIENTE no es patrón sustituto ni solidario respecto del personal de EL PRESTADOR (Art. 14 LFT; Art. 26 CFF). EL PRESTADOR es responsable exclusivo de sus obligaciones laborales, IMSS, INFONAVIT y SAR.',
+      ]
+    },
+    {
+      tit:'Cláusula Novena — Límite de Responsabilidad',
+      parrafos:[
+        '9.1 Alcance. La responsabilidad de EL PRESTADOR se limita a daños directos y acreditados por dolo o culpa grave (Art. 2111 CCF).',
+        '9.2 Exclusiones. No hay responsabilidad por: daños indirectos, lucro cesante, pérdida de oportunidades, actos de autoridades, cambios legislativos posteriores a la firma, ni información incompleta o tardía proporcionada por EL CLIENTE.',
+        '9.3 Límite máximo. La responsabilidad acumulada no excederá de tres (3) mensualidades de los honorarios efectivamente pagados.',
+      ]
+    },
+    {
+      tit:'Cláusula Décima — Obligaciones de las Partes',
+      parrafos:[
+        'Obligaciones de EL PRESTADOR: (1) Prestar servicios con diligencia y calidad conforme a la lex artis aplicable (Art. 2606 CCF). (2) Mantener conocimientos actualizados. (3) Informar oportunamente sobre riesgos y cambios que afecten los intereses del CLIENTE. (4) Emitir CFDI en tiempo y forma. (5) Guardar secreto profesional. (6) No representar simultáneamente intereses directamente opuestos al CLIENTE.',
+        'Obligaciones de EL CLIENTE: (1) Proporcionar información oportuna, completa y veraz, asumiendo responsabilidad por su exactitud. (2) Pagar puntualmente los honorarios. (3) Retener y enterar el ISR, entregando constancias de retención. (4) Notificar en 3 días hábiles cualquier requerimiento de autoridad relacionado con los servicios. (5) No contratar al personal de EL PRESTADOR durante 12 meses posteriores a la terminación. (6) Cooperar activamente en el desarrollo de los servicios.',
+      ]
+    },
+    {
+      tit:'Cláusula Décimo Primera — Caso Fortuito y Fuerza Mayor',
+      parrafos:[
+        'Ninguna de las partes responderá por incumplimiento causado por eventos imprevisibles o inevitables ajenos a su voluntad (Art. 2111 CCF), como desastres naturales, epidemias, actos de terrorismo o cambios legislativos de emergencia.',
+        'La parte afectada notificará en cinco (5) días hábiles describiendo el evento y su duración estimada. Si el evento se prolonga más de sesenta (60) días naturales, cualquiera de las partes podrá terminar el contrato sin responsabilidad, pagando solo los honorarios de servicios ya prestados.',
+      ]
+    },
+    {
+      tit:'Cláusula Décimo Segunda — Cesión de Derechos y Obligaciones',
+      parrafos:[
+        'Los derechos y obligaciones del presente contrato son intransferibles. No podrán cederse, novarse ni delegarse sin consentimiento previo, expreso y por escrito de la otra parte. La cesión no autorizada es nula de pleno derecho (Art. 2031 CCF).',
+      ]
+    },
+    {
+      tit:'Cláusula Décimo Tercera — Modificaciones al Contrato',
+      parrafos:[
+        'El contrato solo podrá modificarse mediante addendum escrito suscrito por representantes autorizados de ambas partes. Los acuerdos verbales, correos electrónicos o mensajes instantáneos no constituyen modificación válida salvo que se eleven a addendum escrito.',
+      ]
+    },
+    {
+      tit:'Cláusula Décimo Cuarta — Validez de la Firma Electrónica',
+      parrafos:[
+        '14.1 Validez legal. La firma electrónica tiene plena validez jurídica equivalente a la firma autógrafa, conforme a los artículos 89, 89-A y 90 del Código de Comercio, el artículo 1803 del Código Civil Federal y la NOM-151-SCFI-2016.',
+        '14.2 Metadatos. Fecha, hora, dispositivo y ubicación aproximada quedan registrados automáticamente como constancia fehaciente de la libre manifestación de voluntad de las partes.',
+        '14.3 Equivalencia funcional. Conforme al artículo 89 del Código de Comercio, el mecanismo de firma aquí utilizado satisface el requisito de identificación del firmante para todos los efectos legales.',
+      ]
+    },
+    {
+      tit:'Cláusula Décimo Quinta — Jurisdicción y Competencia',
+      parrafos:[
+        'Para la interpretación, cumplimiento, ejecución y controversias del presente contrato, las partes se someten expresamente a los Tribunales del fuero común y/o federal de la Ciudad de Monterrey, Nuevo León, México, renunciando a cualquier otro fuero que pudiera corresponderles, conforme al artículo 23 del Código Federal de Procedimientos Civiles.',
+      ]
+    },
+    {
+      tit:'Cláusula Décimo Sexta — Legislación Aplicable e Integración',
+      parrafos:[
+        '16.1 Marco normativo. Este contrato se rige por: Código Civil Federal (Arts. 1792-1859 y 2606-2615); Código de Comercio (Arts. 75, 78, 89, 89-A, 90); Ley del Impuesto sobre la Renta (Arts. 100-110); Ley del Impuesto al Valor Agregado (Arts. 14 y 17); Ley Federal del Derecho de Autor; Ley Federal del Trabajo (Arts. 8, 14 y 20); Código Fiscal de la Federación (Arts. 26, 29 y 29-A); Ley Federal de Protección de Datos Personales en Posesión de los Particulares; y NOM-151-SCFI-2016.',
+        '16.2 Integración. Este instrumento constituye el acuerdo completo entre las partes y deja sin efecto cualquier negociación o entendimiento previo sobre el mismo objeto.',
+        '16.3 Separabilidad. Si alguna cláusula fuera declarada nula por autoridad competente, el resto del contrato continuará vigente en todas sus demás disposiciones.',
+      ]
+    },
   ];
 
-  for(const[tit,txt]of clausulas){
-    if(y<100){pg=addPg();y=H-55;}
-    pg.drawRectangle({x:ML,y:y-1,width:3,height:12,color:GOLD});
-    pg.drawText(tit,{x:ML+8,y,size:8,font:fB,color:NEGRO});y-=14;
-    const ny=wrap(pg,txt,ML,y,LW,7.8,fR,rgb(0.12,0.12,0.12),12);y=ny-10;
-    if(y<80){pg=addPg();y=H-55;}
+  for(const cl of clausulas){
+    [currentPage,y]=checkPage(currentPage,y,100);
+    y=drawTitulo(currentPage,cl.tit,y);
+    for(const p of cl.parrafos){
+      [currentPage,y]=checkPage(currentPage,y,60);
+      const ny=drawParagraph(currentPage,p,y);
+      [currentPage,y]=checkPage(currentPage,ny,40);
+    }
+    y-=6;
   }
 
-  // PÁGINA FIRMAS
-  pg=addPg();y=H-55;
-  pg.drawText('FIRMAS DE LAS PARTES — CONTRATO FIRMADO DIGITALMENTE',{x:ML,y,size:9.5,font:fB,color:NEGRO});y-=8;
-  pg.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:0.8,color:NEGRO});y-=14;
-  pg.drawText(`Firmado en ${d.lugar_firma||'San Pedro Garza García, N.L.'}, el ${d.firmado_at?new Date(d.firmado_at).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}):d.fecha_firma||''}.`,{x:ML,y,size:8,font:fI,color:GRIS});y-=28;
-  const fw=(LW-20)/2,fx1=ML,fx2=ML+fw+20,sigBoxH=90;
-  pg.drawRectangle({x:fx1,y:y-sigBoxH,width:fw,height:sigBoxH,color:rgb(0.99,0.99,0.99),borderColor:rgb(0.75,0.75,0.75),borderWidth:0.4});
-  pg.drawRectangle({x:fx2,y:y-sigBoxH,width:fw,height:sigBoxH,color:rgb(0.99,0.99,0.99),borderColor:rgb(0.75,0.75,0.75),borderWidth:0.4});
+  // Declaración final
+  [currentPage,y]=checkPage(currentPage,y,80);
+  currentPage.drawRectangle({x:ML,y:y-50,width:LW,height:58,color:CREAM,borderColor:rgb(0.8,0.77,0.7),borderWidth:0.5});
+  currentPage.drawText('Declaración final de aceptación',{x:ML+8,y:y-8,size:8,font:fB,color:NEGRO});
+  wrap(currentPage,'Habiendo leído íntegramente las partes el presente Contrato, enteradas de su contenido, alcances y consecuencias jurídicas y económicas, libres de dolo, error o vicio del consentimiento, manifiestan su plena conformidad y aceptación, comprometiéndose a su fiel y puntual cumplimiento.',ML+8,y-22,LW-16,7.8,fI,GRIS,11.5);
+  y-=66;
+
+  // ── PÁGINA DE FIRMAS ─────────────────────────────────────────────
+  currentPage=addPg(); y=H-55;
+  currentPage.drawText('FIRMAS DE LAS PARTES — DE PLENA CONFORMIDAD',{x:W/2-110,y,size:10,font:fB,color:NEGRO});
+  y-=8;
+  currentPage.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:0.8,color:NEGRO});
+  y-=14;
+  const lugarFirma=d.lugar_firma||'San Pedro Garza García, N.L.';
+  const fechaFirmada=d.firmado_at?new Date(d.firmado_at).toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'}):d.fecha_firma||'';
+  currentPage.drawText('Firmado en '+lugarFirma+', el '+fechaFirmada+'.',{x:ML,y,size:8,font:fI,color:GRIS});
+  y-=28;
+
+  // Cajas de firma
+  const fw=(LW-20)/2,fx1=ML,fx2=ML+fw+20,sigBoxH=100;
+  currentPage.drawRectangle({x:fx1,y:y-sigBoxH,width:fw,height:sigBoxH,color:GRIS_L,borderColor:rgb(0.75,0.75,0.75),borderWidth:0.4});
+  currentPage.drawRectangle({x:fx2,y:y-sigBoxH,width:fw,height:sigBoxH,color:GRIS_L,borderColor:rgb(0.75,0.75,0.75),borderWidth:0.4});
   const sdW=Math.min(fw-20,sigP.width/1.8),sdH=sdW*(sigP.height/sigP.width);
   const scW=Math.min(fw-20,sigC.width/1.8),scH=scW*(sigC.height/sigC.width);
-  pg.drawImage(sigP,{x:fx1+(fw-sdW)/2,y:y-sigBoxH+(sigBoxH-sdH)/2,width:sdW,height:sdH});
-  pg.drawImage(sigC,{x:fx2+(fw-scW)/2,y:y-sigBoxH+(sigBoxH-scH)/2,width:scW,height:scH});
+  currentPage.drawImage(sigP,{x:fx1+(fw-sdW)/2,y:y-sigBoxH+(sigBoxH-sdH)/2,width:sdW,height:sdH});
+  currentPage.drawImage(sigC,{x:fx2+(fw-scW)/2,y:y-sigBoxH+(sigBoxH-scH)/2,width:scW,height:scH});
   y-=sigBoxH+4;
-  pg.drawLine({start:{x:fx1+8,y},end:{x:fx1+fw-8,y},thickness:0.8,color:NEGRO});
-  pg.drawLine({start:{x:fx2+8,y},end:{x:fx2+fw-8,y},thickness:0.8,color:NEGRO});
+  currentPage.drawLine({start:{x:fx1+8,y},end:{x:fx1+fw-8,y},thickness:0.8,color:NEGRO});
+  currentPage.drawLine({start:{x:fx2+8,y},end:{x:fx2+fw-8,y},thickness:0.8,color:NEGRO});
   y-=13;
-  for(const[fx,n,c,e,r]of[[fx1,'Héctor Orlando Aguirre Ramírez','Socio Director','HAG Asesores, S.C.','RFC: HAS250903NT4'],[fx2,d.representante||'',d.cargo_rep||'Representante Legal',d.razon_social||'','RFC: '+(d.rfc||'')]]){
+  for(const[fx,n,c,e,r]of[
+    [fx1,'Héctor Orlando Aguirre Ramírez','Socio Director','HAG Asesores, S.C. (Aguirre & Ceballos)','RFC: HAS250903NT4'],
+    [fx2,d.representante||'',d.cargo_rep||'Representante Legal',d.razon_social||'','RFC: '+(d.rfc||'')]
+  ]){
     let cy=y;
-    pg.drawText(n,{x:fx+6,y:cy,size:8,font:fB,color:NEGRO});cy-=12;
-    pg.drawText(c,{x:fx+6,y:cy,size:7.5,font:fI,color:GRIS});cy-=11;
-    pg.drawText(e,{x:fx+6,y:cy,size:7.5,font:fR,color:GRIS});cy-=11;
-    pg.drawText(r,{x:fx+6,y:cy,size:7.5,font:fR,color:GRIS});
+    currentPage.drawText(n,{x:fx+6,y:cy,size:8,font:fB,color:NEGRO});cy-=12;
+    currentPage.drawText(c,{x:fx+6,y:cy,size:7.5,font:fI,color:GRIS});cy-=11;
+    currentPage.drawText(e,{x:fx+6,y:cy,size:7.5,font:fR,color:GRIS});cy-=11;
+    currentPage.drawText(r,{x:fx+6,y:cy,size:7.5,font:fR,color:GRIS});
   }
   y-=58;
-  pg.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:0.3,color:rgb(0.8,0.8,0.8)});y-=12;
-  pg.drawText('Correo del cliente: '+(d.email||''),{x:ML,y,size:7,font:fR,color:GRIS});y-=11;
-  wrap(pg,'Documento firmado electrónicamente. Firma digital con validez conforme al Art. 89 del Código de Comercio y la NOM-151-SCFI-2016.',ML,y,LW,6.8,fI,GRIS,10);
-  pg.drawRectangle({x:MR-108,y:y-36,width:108,height:40,color:NEGRO});
-  pg.drawText('AGUIRRE & CEBALLOS',{x:MR-104,y:y-16,size:7,font:fB,color:GOLD});
-  pg.drawText('Liridicum · Tributa · Consilium',{x:MR-104,y:y-27,size:5.8,font:fI,color:rgb(0.7,0.7,0.7)});
-  pg.drawText('admin@aguirreceballos.com',{x:MR-104,y:y-37,size:5.5,font:fR,color:rgb(0.6,0.6,0.6)});
 
+  // Foto de verificación si existe
+  if(imgFoto){
+    currentPage=addPg(); y=H-55;
+    currentPage.drawText('EVIDENCIA DE VERIFICACIÓN DE IDENTIDAD — EL CLIENTE',{x:ML,y,size:9,font:fB,color:NEGRO});y-=8;
+    currentPage.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:0.8,color:NEGRO});y-=16;
+    currentPage.drawText('Fotografía capturada al momento de la firma digital por: '+(d.representante||'')+' — '+(d.razon_social||''),{x:ML,y,size:8,font:fI,color:GRIS});y-=16;
+    currentPage.drawText('Fecha y hora de captura: '+new Date(d.firmado_at||Date.now()).toLocaleString('es-MX'),{x:ML,y,size:8,font:fR,color:GRIS});y-=20;
+    // Imagen centrada
+    const fotoW=240,fotoH=fotoW*(imgFoto.height/imgFoto.width);
+    const fotoX=(W-fotoW)/2;
+    currentPage.drawRectangle({x:fotoX-4,y:y-fotoH-4,width:fotoW+8,height:fotoH+8,color:NEGRO});
+    currentPage.drawImage(imgFoto,{x:fotoX,y:y-fotoH,width:fotoW,height:fotoH});
+    y-=fotoH+20;
+    currentPage.drawText('Esta fotografía forma parte integral del presente contrato como constancia de identificación del firmante.',{x:ML,y,size:7.5,font:fI,color:GRIS,maxWidth:LW});
+    y-=20;
+    currentPage.drawText('La captura fue realizada mediante el sistema digital de firma de Aguirre & Ceballos al momento de la suscripción.',{x:ML,y,size:7.5,font:fI,color:GRIS,maxWidth:LW});
+  }
+
+  // Sello y nota legal
+  [currentPage,y]=checkPage(currentPage,y,60);
+  y-=20;
+  currentPage.drawLine({start:{x:ML,y},end:{x:MR,y},thickness:0.3,color:rgb(0.8,0.8,0.8)});y-=12;
+  currentPage.drawText('Correo del cliente: '+(d.email||'')+'  ·  Folio: '+folio,{x:ML,y,size:7,font:fR,color:GRIS});y-=11;
+  wrap(currentPage,'Documento firmado electrónicamente. La firma digital tiene validez plena conforme al Art. 89 del Código de Comercio, Art. 1803 del Código Civil Federal y la NOM-151-SCFI-2016.',ML,y,LW,6.8,fI,GRIS,10);
+  // Sello A&C
+  currentPage.drawRectangle({x:MR-112,y:y-38,width:112,height:42,color:NEGRO});
+  currentPage.drawText('AGUIRRE & CEBALLOS',{x:MR-108,y:y-16,size:7,font:fB,color:GOLD});
+  currentPage.drawText('Liridicum · Tributa · Consilium',{x:MR-108,y:y-27,size:5.8,font:fI,color:rgb(0.7,0.7,0.7)});
+  currentPage.drawText('admin@aguirreceballos.com',{x:MR-108,y:y-37,size:5.5,font:fR,color:rgb(0.6,0.6,0.6)});
+
+  // Descargar
   const bytes=await pdf.save();
   const blob=new Blob([bytes],{type:'application/pdf'});
   const url=URL.createObjectURL(blob);
@@ -1269,6 +1585,7 @@ async function generarPDFFinal(d){
   a.download='Contrato_AC_'+(d.razon_social||'').replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)+'_'+new Date().toISOString().slice(0,10)+'.pdf';
   a.click();URL.revokeObjectURL(url);
 }
+
 
 // ── NUEVO CONTRATO ───────────────────────────────────────────────
 function nuevoContrato(){
