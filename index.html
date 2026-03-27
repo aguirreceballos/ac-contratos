@@ -355,6 +355,12 @@ canvas{display:block;width:100%;height:160px;cursor:crosshair;touch-action:none}
 .dash-btn-pdf{background:var(--negro);color:var(--gold);border:none}
 .dash-btn-pdf:hover{background:#222;color:var(--gold2)}
 .dash-empty{padding:48px;text-align:center;color:var(--gris);font-size:13px}
+
+/* ── PARCIALIDADES ── */
+.parc-row{display:grid;grid-template-columns:32px 1fr 1fr 1fr;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--cream)}
+.parc-row:last-child{border-bottom:none}
+.parc-num{font-size:11px;font-weight:600;color:var(--gris2);font-family:'DM Mono',monospace;text-align:center}
+.cobro-total-resumen{background:var(--negro);color:var(--gold);border-radius:var(--r);padding:8px 14px;font-size:12px;font-weight:500;margin-bottom:12px;display:none}
 </style>
 </head>
 <body>
@@ -470,21 +476,110 @@ canvas{display:block;width:100%;height:160px;cursor:crosshair;touch-action:none}
     </div>
   </div>
   <div class="panel">
-    <div class="panel-header"><span>💰</span><div class="panel-title">Honorarios y condiciones económicas</div></div>
+    <div class="panel-header"><span>💰</span><div class="panel-title">Esquema de honorarios y condiciones económicas</div></div>
     <div class="panel-body">
-      <div class="honor-row">
-        <div class="form-group"><label>Honorarios mensuales (MXN) *</label><div class="monto-wrap"><span class="monto-prefix">$</span><input type="number" id="h-monto" placeholder="0.00" min="0" step="100"></div></div>
-        <div class="form-group"><label>¿Incluye IVA?</label><select id="h-iva"><option value="mas">No — se añadirá 16% IVA</option><option value="incluido">Sí — ya incluye IVA</option></select></div>
-        <div class="form-group"><label>Forma de pago</label><select id="h-forma"><option>Transferencia bancaria</option><option>Depósito bancario</option><option>Cheque</option><option>Efectivo</option></select></div>
+
+      <!-- Tipo de cobro -->
+      <label style="margin-bottom:10px;display:block">Esquema de cobro *</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px" id="cobro-grid">
+        <div class="tipo-card" id="cobro-mensual" onclick="selectCobro('mensual')" style="padding:14px">
+          <div class="tipo-check">✓</div>
+          <div style="font-size:20px;margin-bottom:6px">📅</div>
+          <div class="tipo-name" style="font-size:13px">Iguala mensual</div>
+          <div class="tipo-desc" style="font-size:11px">Pago fijo recurrente cada mes durante la vigencia</div>
+        </div>
+        <div class="tipo-card" id="cobro-parcialidades" onclick="selectCobro('parcialidades')" style="padding:14px">
+          <div class="tipo-check">✓</div>
+          <div style="font-size:20px;margin-bottom:6px">🔢</div>
+          <div class="tipo-name" style="font-size:13px">Parcialidades</div>
+          <div class="tipo-desc" style="font-size:11px">Pagos en fechas específicas con montos distintos</div>
+        </div>
+        <div class="tipo-card" id="cobro-evento" onclick="selectCobro('evento')" style="padding:14px">
+          <div class="tipo-check">✓</div>
+          <div style="font-size:20px;margin-bottom:6px">⚡</div>
+          <div class="tipo-name" style="font-size:13px">Pago por evento</div>
+          <div class="tipo-desc" style="font-size:11px">Un solo cobro al concluir el servicio o por hito</div>
+        </div>
       </div>
+
+      <!-- ── MENSUAL ── -->
+      <div id="cobro-mensual-form" style="display:none">
+        <div class="honor-row">
+          <div class="form-group"><label>Monto mensual (MXN) *</label><div class="monto-wrap"><span class="monto-prefix">$</span><input type="number" id="h-monto" placeholder="0.00" min="0" step="100"></div></div>
+          <div class="form-group"><label>¿Incluye IVA?</label><select id="h-iva"><option value="mas">No — se añadirá 16% IVA</option><option value="incluido">Sí — ya incluye IVA</option></select></div>
+          <div class="form-group"><label>Forma de pago</label><select id="h-forma"><option>Transferencia bancaria</option><option>Depósito bancario</option><option>Cheque</option><option>Efectivo</option></select></div>
+        </div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="form-group"><label>Día límite de pago</label><select id="h-dia"><option value="5">Día 5 de cada mes</option><option value="10">Día 10</option><option value="15" selected>Día 15</option><option value="el último día hábil">Último día hábil</option></select></div>
+          <div class="form-group"><label>Vigencia</label><select id="h-vigencia"><option value="12">12 meses</option><option value="24">24 meses</option></select></div>
+          <div class="form-group"><label>Fecha de inicio</label><input type="text" id="h-fecha" placeholder="ej. 1 de abril de 2026"></div>
+          <div class="form-group"><label>Preaviso para terminación</label><select id="h-preaviso"><option value="treinta (30)">30 días</option><option value="sesenta (60)">60 días</option><option value="noventa (90)">90 días</option></select></div>
+        </div>
+      </div>
+
+      <!-- ── PARCIALIDADES ── -->
+      <div id="cobro-parcialidades-form" style="display:none">
+        <div class="form-grid" style="margin-bottom:14px">
+          <div class="form-group"><label>Total del servicio (MXN) *</label><div class="monto-wrap"><span class="monto-prefix">$</span><input type="number" id="h-monto-total" placeholder="0.00" min="0" step="100" oninput="actualizarTotalParc()"></div></div>
+          <div class="form-group"><label>¿Incluye IVA?</label><select id="h-iva-parc" onchange="actualizarTotalParc()"><option value="mas">No — se añadirá 16% IVA</option><option value="incluido">Sí — ya incluye IVA</option></select></div>
+          <div class="form-group"><label>Número de parcialidades *</label><select id="h-num-parc" onchange="generarParcialidades()"><option value="2">2 pagos</option><option value="3" selected>3 pagos</option><option value="4">4 pagos</option><option value="5">5 pagos</option><option value="6">6 pagos</option></select></div>
+          <div class="form-group"><label>Forma de pago</label><select id="h-forma-parc"><option>Transferencia bancaria</option><option>Depósito bancario</option><option>Cheque</option><option>Efectivo</option></select></div>
+        </div>
+        <div id="parc-resumen" style="font-size:12px;color:var(--gris);margin-bottom:12px"></div>
+        <label style="margin-bottom:8px;display:block">Detalle de cada parcialidad</label>
+        <div id="parc-list"></div>
+        <div class="nota" style="margin-top:12px;font-size:11px">Los montos y fechas de cada parcialidad quedarán especificados en el contrato. La suma debe ser igual al total pactado.</div>
+      </div>
+
+      <!-- ── POR EVENTO ── -->
+      <div id="cobro-evento-form" style="display:none">
+        <div class="honor-row">
+          <div class="form-group"><label>Monto del servicio (MXN) *</label><div class="monto-wrap"><span class="monto-prefix">$</span><input type="number" id="h-monto-evento" placeholder="0.00" min="0" step="100"></div></div>
+          <div class="form-group"><label>¿Incluye IVA?</label><select id="h-iva-evento"><option value="mas">No — se añadirá 16% IVA</option><option value="incluido">Sí — ya incluye IVA</option></select></div>
+          <div class="form-group"><label>Forma de pago</label><select id="h-forma-evento"><option>Transferencia bancaria</option><option>Depósito bancario</option><option>Cheque</option><option>Efectivo</option></select></div>
+        </div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="form-group"><label>Fecha límite de pago *</label><input type="text" id="h-fecha-evento" placeholder="ej. 30 de mayo de 2026"></div>
+          <div class="form-group"><label>Hito o condición de pago</label><input type="text" id="h-hito" placeholder="ej. Al concluir el juicio, Al entregar el dictamen…"></div>
+        </div>
+      </div>
+
       <div class="divider"></div>
+
+      <!-- COMUNICACIÓN OFICIAL -->
+      <label style="margin-bottom:10px;display:block">📱 Medio de comunicación oficial pactado entre las partes</label>
+      <p style="font-size:12px;color:var(--gris);margin-bottom:14px;line-height:1.6">El medio que se establezca aquí será el canal oficial para notificaciones, requerimientos y comunicaciones con efectos jurídicos entre las partes, conforme al presente contrato.</p>
       <div class="form-grid">
-        <div class="form-group"><label>Día límite de pago</label><select id="h-dia"><option value="5">Día 5 de cada mes</option><option value="10">Día 10</option><option value="15" selected>Día 15</option><option value="el último día hábil">Último día hábil</option></select></div>
-        <div class="form-group"><label>Vigencia</label><select id="h-vigencia"><option value="12">12 meses</option><option value="24">24 meses</option></select></div>
-        <div class="form-group"><label>Fecha de inicio</label><input type="text" id="h-fecha" placeholder="ej. 1 de abril de 2026"></div>
-        <div class="form-group"><label>Preaviso para terminación</label><select id="h-preaviso"><option value="treinta (30)">30 días</option><option value="sesenta (60)">60 días</option><option value="noventa (90)">90 días</option></select></div>
+        <div class="form-group">
+          <label>Medio principal</label>
+          <select id="com-medio1" onchange="toggleComMedio()">
+            <option value="correo">Correo electrónico</option>
+            <option value="whatsapp">WhatsApp</option>
+          </select>
+        </div>
+        <div class="form-group" id="com-dato1-wrap">
+          <label id="com-dato1-lbl">Correo electrónico oficial *</label>
+          <input type="text" id="com-dato1" placeholder="contacto@empresa.com">
+        </div>
+        <div class="form-group">
+          <label>Medio secundario (opcional)</label>
+          <select id="com-medio2" onchange="toggleComMedio()">
+            <option value="">— Sin medio secundario —</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="correo">Correo electrónico</option>
+          </select>
+        </div>
+        <div class="form-group" id="com-dato2-wrap" style="display:none">
+          <label id="com-dato2-lbl">Dato del medio secundario</label>
+          <input type="text" id="com-dato2" placeholder="">
+        </div>
       </div>
-      <div class="form-group" style="margin-top:14px"><label>Observaciones especiales (opcional)</label><textarea id="h-obs" placeholder="Entregables, restricciones, condiciones especiales…"></textarea></div>
+      <div class="nota-blue" style="margin-top:12px;font-size:11px">
+        ⚖️ Las notificaciones enviadas por este medio tendrán plena validez jurídica entre las partes. Cualquier cambio deberá notificarse por escrito con al menos 5 días hábiles de anticipación.
+      </div>
+
+      <div class="divider"></div>
+      <div class="form-group"><label>Observaciones especiales (opcional)</label><textarea id="h-obs" placeholder="Entregables, restricciones, condiciones especiales…"></textarea></div>
     </div>
   </div>
   <div class="actions-row"><button class="btn-secondary" onclick="ir(2)">← Atrás</button><button class="btn-primary" onclick="ir(4)">Continuar →</button></div>
@@ -541,8 +636,8 @@ canvas{display:block;width:100%;height:160px;cursor:crosshair;touch-action:none}
     </div>
   </div>
   <div class="actions-row">
-    <button class="btn-secondary" onclick="nuevoContrato()">Nuevo contrato</button>
-    <div></div>
+    <button class="btn-secondary" onclick="nuevoContrato()">+ Nuevo contrato</button>
+    <a href="?dashboard" style="background:var(--negro);color:var(--gold);border:none;padding:12px 22px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px">📊 Ir al dashboard</a>
   </div>
 </div>
 
@@ -837,6 +932,8 @@ async function guardarYGenerarLink(){
   }
   showLoading('Guardando contrato…');
   try{
+    const honor=getDatosHonorarios();
+    const com=getComData();
     const datos={
       razon_social:document.getElementById('c-razon').value.trim(),
       rfc:document.getElementById('c-rfc').value.trim().toUpperCase(),
@@ -848,13 +945,11 @@ async function guardarYGenerarLink(){
       materias:D.materias,
       alcances:D.alcances,
       observaciones:document.getElementById('h-obs').value.trim(),
-      monto:Number(document.getElementById('h-monto').value),
-      incluye_iva:document.getElementById('h-iva').value==='incluido',
-      forma_pago:document.getElementById('h-forma').value,
-      dia_pago:document.getElementById('h-dia').value,
-      vigencia:document.getElementById('h-vigencia').value,
-      fecha_inicio:document.getElementById('h-fecha').value.trim(),
-      preaviso:document.getElementById('h-preaviso').value,
+      ...honor,
+      com_medio1:com.com_medio1,
+      com_dato1:com.com_dato1,
+      com_medio2:com.com_medio2||null,
+      com_dato2:com.com_dato2||null,
       firma_prestador:getSig('prestador'),
       fecha_firma:document.getElementById('firma-fecha').value.trim(),
       lugar_firma:document.getElementById('firma-lugar').value.trim(),
@@ -1103,29 +1198,29 @@ function buildContratoHTML(d){
 </div>
 
 <div class="clausula">
-  <div class="clausula-titulo">Cláusula Décimo Segunda — Cesión de Derechos y Obligaciones</div>
+  <div class="clausula-titulo">Cláusula Décimo Tercera — Cesión de Derechos y Obligaciones</div>
   <p>Los derechos y obligaciones derivados del presente contrato son de carácter personal e intransferible y no podrán ser cedidos, novados, transmitidos ni delegados, total ni parcialmente, por ninguna de las partes a favor de tercero alguno, sin obtener el consentimiento previo, expreso e irrevocable de la otra parte, otorgado mediante escrito debidamente firmado. Cualquier acto de cesión, novación o transmisión que se realice en contravención a lo aquí establecido será nulo de pleno derecho, en términos del artículo 2031 del Código Civil Federal, sin perjuicio de las acciones de daños y perjuicios que la parte afectada pueda ejercer.</p>
 </div>
 
 <div class="clausula">
-  <div class="clausula-titulo">Cláusula Décimo Tercera — Modificaciones al Contrato</div>
+  <div class="clausula-titulo">Cláusula Décimo Cuarta — Modificaciones al Contrato</div>
   <p>El presente contrato únicamente podrá ser modificado, adicionado, enmendado o complementado mediante la suscripción de un addendum o convenio modificatorio escrito, firmado por los representantes legales autorizados de ambas partes con las mismas formalidades observadas en este instrumento. Cualquier acuerdo, promesa o compromiso verbal, así como cualquier intercambio de mensajes por correo electrónico, mensajería instantánea u otro medio de comunicación digital, no constituirá modificación válida al presente contrato, salvo que sea elevado a addendum escrito conforme a lo aquí establecido.</p>
 </div>
 
 <div class="clausula">
-  <div class="clausula-titulo">Cláusula Décimo Cuarta — Validez y Eficacia de la Firma Electrónica</div>
+  <div class="clausula-titulo">Cláusula Décimo Quinta — Validez y Eficacia de la Firma Electrónica</div>
   <p><strong>14.1 Validez legal.</strong> Las partes convienen expresamente en que la firma electrónica estampada en el presente instrumento tiene plena validez jurídica y fuerza probatoria equivalente e igual a la firma autógrafa, de conformidad con los artículos 89, 89-A y 90 del Código de Comercio, el artículo 1803 del Código Civil Federal que reconoce la manifestación de voluntad a través de medios electrónicos, y la Norma Oficial Mexicana NOM-151-SCFI-2016 relativa a la conservación de mensajes de datos y digitalización de documentos.</p>
   <p><strong>14.2 Registro de metadatos.</strong> Los metadatos asociados a la firma electrónica —incluyendo fecha, hora, dirección IP y ubicación geográfica aproximada del dispositivo utilizado para firmar— quedan registrados de manera automática en el sistema que aloja el presente instrumento y constituyen prueba fehaciente de la libre, espontánea e irrevocable manifestación de voluntad de las partes, vinculante para todos los efectos legales.</p>
   <p><strong>14.3 Equivalencia funcional.</strong> En términos del artículo 89 del Código de Comercio, cuando la ley exija la firma de las partes, dicho requisito quedará satisfecho en relación con un mensaje de datos si se utiliza un método confiable para identificar al firmante. Las partes reconocen que el mecanismo de firma aquí utilizado cumple con dicho estándar.</p>
 </div>
 
 <div class="clausula">
-  <div class="clausula-titulo">Cláusula Décimo Quinta — Jurisdicción y Competencia</div>
+  <div class="clausula-titulo">Cláusula Décimo Sexta — Jurisdicción y Competencia</div>
   <p>Para todo lo relativo a la interpretación, cumplimiento, ejecución, rescisión y, en su caso, controversias derivadas del presente contrato, las partes se someten expresa, voluntaria e irrevocablemente a la jurisdicción y competencia de los <strong>Tribunales del fuero común y/o federal competentes radicados en la Ciudad de Monterrey, Estado de Nuevo León, México</strong>, renunciando de manera expresa e irrevocable a cualquier otro fuero que por razón de su domicilio presente o futuro, nacionalidad, o por cualquier otra causa, pudiera corresponderles o favorecerles, de conformidad con el artículo 23 del Código Federal de Procedimientos Civiles.</p>
 </div>
 
 <div class="clausula">
-  <div class="clausula-titulo">Cláusula Décimo Sexta — Legislación Aplicable e Integración del Contrato</div>
+  <div class="clausula-titulo">Cláusula Décimo Séptima — Legislación Aplicable e Integración del Contrato</div>
   <p><strong>16.1 Marco normativo.</strong> El presente contrato se rige, interpreta e integra conforme al orden jurídico de los Estados Unidos Mexicanos, en particular por las siguientes disposiciones normativas: <strong>Código Civil Federal</strong>, específicamente los artículos 1792 a 1859 referentes a la teoría general de las obligaciones y de los contratos, y los artículos 2606 a 2615 que regulan el contrato de prestación de servicios profesionales; <strong>Código de Comercio</strong>, artículos 75, 78, 89, 89-A y 90; <strong>Ley del Impuesto sobre la Renta (LISR)</strong>, artículos 100 a 110 relativos a la actividad profesional independiente; <strong>Ley del Impuesto al Valor Agregado (LIVA)</strong>, artículos 14 y 17; <strong>Ley Federal del Derecho de Autor (LFDA)</strong>; <strong>Ley Federal del Trabajo (LFT)</strong>, artículos 8, 14 y 20; <strong>Código Fiscal de la Federación (CFF)</strong>, artículos 26, 29 y 29-A; <strong>Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP)</strong> y su Reglamento; y la <strong>Norma Oficial Mexicana NOM-151-SCFI-2016</strong>, así como las demás leyes, reglamentos y disposiciones administrativas de observancia general aplicables, vigentes al momento de la celebración y durante la ejecución del presente contrato.</p>
   <p><strong>16.2 Integración.</strong> El presente instrumento constituye el acuerdo completo e integral entre las partes respecto del objeto aquí regulado, y deja sin efecto cualquier negociación, propuesta, carta de intención, acuerdo verbal o entendimiento previo que hubieren sostenido las partes sobre el mismo objeto.</p>
   <p><strong>16.3 Separabilidad.</strong> En el supuesto de que alguna cláusula o disposición del presente contrato fuera declarada nula, inválida o inaplicable por autoridad competente, dicha declaración no afectará la validez y plena eficacia del resto del instrumento, el cual continuará vigente en todas sus demás disposiciones.</p>
@@ -1168,6 +1263,164 @@ function renderContratoCliente(d){
   document.getElementById('contrato-cliente-render').innerHTML=buildContratoHTML(d);
 }
 
+
+
+// ══════════════════════════════════════════════════════════════════
+// ESQUEMA DE COBRO
+// ══════════════════════════════════════════════════════════════════
+let esquemaCobro = '';
+
+function selectCobro(tipo){
+  esquemaCobro = tipo;
+  ['mensual','parcialidades','evento'].forEach(t=>{
+    document.getElementById('cobro-'+t).classList.remove('selected');
+    document.getElementById('cobro-'+t+'-form').style.display='none';
+  });
+  document.getElementById('cobro-'+tipo).classList.add('selected');
+  document.getElementById('cobro-'+tipo+'-form').style.display='block';
+  if(tipo==='parcialidades') generarParcialidades();
+}
+
+function generarParcialidades(){
+  const n=parseInt(document.getElementById('h-num-parc').value)||3;
+  const list=document.getElementById('parc-list');
+  list.innerHTML='';
+  for(let i=1;i<=n;i++){
+    const row=document.createElement('div');
+    row.className='parc-row';
+    row.innerHTML=`<div class="parc-num">${String(i).padStart(2,'0')}</div>
+      <div class="form-group" style="margin:0"><label style="font-size:9px">Concepto</label>
+        <input type="text" class="parc-concepto" placeholder="ej. Anticipo, 2do pago…" style="font-size:12px;padding:7px 9px">
+      </div>
+      <div class="form-group" style="margin:0"><label style="font-size:9px">Monto (MXN)</label>
+        <div class="monto-wrap"><span class="monto-prefix" style="font-size:11px">$</span>
+          <input type="number" class="parc-monto" placeholder="0.00" min="0" step="100" style="font-size:12px;padding:7px 9px 7px 24px;font-family:'DM Mono',monospace" oninput="actualizarTotalParc()">
+        </div>
+      </div>
+      <div class="form-group" style="margin:0"><label style="font-size:9px">Fecha de pago</label>
+        <input type="text" class="parc-fecha" placeholder="ej. 15 abr 2026" style="font-size:12px;padding:7px 9px">
+      </div>`;
+    list.appendChild(row);
+  }
+  actualizarTotalParc();
+}
+
+function actualizarTotalParc(){
+  const total=Number(document.getElementById('h-monto-total')?.value||0);
+  const iva=document.getElementById('h-iva-parc')?.value;
+  const totalConIva=iva==='mas'?total*1.16:total;
+  const sumaParciales=[...document.querySelectorAll('.parc-monto')].reduce((s,i)=>s+Number(i.value||0),0);
+  const resumen=document.getElementById('parc-resumen');
+  if(!resumen)return;
+  if(total>0){
+    const diff=total-sumaParciales;
+    resumen.innerHTML=`Total del servicio: <strong>${fmtMXN(total)}</strong> ${iva==='mas'?'+ IVA = <strong>'+fmtMXN(totalConIva)+'</strong>':''} &nbsp;·&nbsp; Suma de parcialidades: <strong>${fmtMXN(sumaParciales)}</strong> &nbsp;·&nbsp; <span style="color:${Math.abs(diff)<1?'var(--green)':'var(--red)'}">${Math.abs(diff)<1?'✓ Cuadra':'Diferencia: '+fmtMXN(Math.abs(diff))}</span>`;
+  }else{
+    resumen.innerHTML='';
+  }
+}
+
+// ── COMUNICACIÓN OFICIAL ─────────────────────────────────────────
+function toggleComMedio(){
+  const m1=document.getElementById('com-medio1').value;
+  const m2=document.getElementById('com-medio2').value;
+  const lbl1=document.getElementById('com-dato1-lbl');
+  const inp1=document.getElementById('com-dato1');
+  lbl1.textContent=m1==='correo'?'Correo electrónico oficial *':'Número de WhatsApp * (con lada)';
+  inp1.placeholder=m1==='correo'?'contacto@empresa.com':'+52 81 1234 5678';
+  const wrap2=document.getElementById('com-dato2-wrap');
+  if(m2){
+    wrap2.style.display='flex';
+    document.getElementById('com-dato2-lbl').textContent=m2==='correo'?'Correo electrónico secundario':'Número de WhatsApp secundario';
+    document.getElementById('com-dato2').placeholder=m2==='correo'?'otro@empresa.com':'+52 81 8765 4321';
+  }else{
+    wrap2.style.display='none';
+  }
+}
+
+// ── OVERRIDE val3 para incluir validación de esquema ─────────────
+const _val3Original = val3;
+val3 = function(){
+  if(!esquemaCobro){ alert('Selecciona el esquema de cobro'); return false; }
+  if(esquemaCobro==='mensual'){
+    if(!document.getElementById('h-monto').value||Number(document.getElementById('h-monto').value)<=0){
+      alert('Indica el monto mensual'); return false;
+    }
+  } else if(esquemaCobro==='parcialidades'){
+    if(!document.getElementById('h-monto-total').value||Number(document.getElementById('h-monto-total').value)<=0){
+      alert('Indica el monto total del servicio'); return false;
+    }
+    const montos=[...document.querySelectorAll('.parc-monto')].map(i=>Number(i.value||0));
+    if(montos.every(m=>m===0)){ alert('Indica el monto de al menos una parcialidad'); return false; }
+  } else if(esquemaCobro==='evento'){
+    if(!document.getElementById('h-monto-evento').value||Number(document.getElementById('h-monto-evento').value)<=0){
+      alert('Indica el monto del servicio'); return false;
+    }
+  }
+  if(!document.getElementById('com-dato1').value.trim()){
+    alert('Indica el medio de comunicación oficial con el cliente'); return false;
+  }
+  // Recolectar alcances
+  D.alcances=[...document.querySelectorAll('.alc-input')].map(i=>i.value.trim()).filter(v=>v);
+  if(!D.alcances.length){ alert('Agrega al menos un alcance'); return false; }
+  return true;
+};
+
+// ── Helper para leer datos de honorarios según esquema ───────────
+function getDatosHonorarios(){
+  if(esquemaCobro==='mensual'){
+    return{
+      esquema:'mensual',
+      monto:Number(document.getElementById('h-monto').value),
+      incluye_iva:document.getElementById('h-iva').value==='incluido',
+      forma_pago:document.getElementById('h-forma').value,
+      dia_pago:document.getElementById('h-dia').value,
+      vigencia:document.getElementById('h-vigencia').value,
+      fecha_inicio:document.getElementById('h-fecha').value.trim(),
+      preaviso:document.getElementById('h-preaviso').value,
+    };
+  } else if(esquemaCobro==='parcialidades'){
+    const parcialidades=[...document.querySelectorAll('.parc-row')].map((row,i)=>({
+      num:i+1,
+      concepto:row.querySelector('.parc-concepto').value.trim()||`Parcialidad ${i+1}`,
+      monto:Number(row.querySelector('.parc-monto').value||0),
+      fecha:row.querySelector('.parc-fecha').value.trim(),
+    }));
+    const montoTotal=Number(document.getElementById('h-monto-total').value);
+    return{
+      esquema:'parcialidades',
+      monto:montoTotal,
+      incluye_iva:document.getElementById('h-iva-parc').value==='incluido',
+      forma_pago:document.getElementById('h-forma-parc').value,
+      dia_pago:'según calendario de parcialidades',
+      vigencia:'según calendario de pagos',
+      fecha_inicio:parcialidades[0]?.fecha||'',
+      preaviso:'treinta (30)',
+      parcialidades:JSON.stringify(parcialidades),
+    };
+  } else {
+    return{
+      esquema:'evento',
+      monto:Number(document.getElementById('h-monto-evento').value),
+      incluye_iva:document.getElementById('h-iva-evento').value==='incluido',
+      forma_pago:document.getElementById('h-forma-evento').value,
+      dia_pago:document.getElementById('h-fecha-evento').value.trim(),
+      vigencia:'por evento',
+      fecha_inicio:document.getElementById('h-fecha-evento').value.trim(),
+      preaviso:'treinta (30)',
+      hito_pago:document.getElementById('h-hito').value.trim(),
+    };
+  }
+}
+
+function getComData(){
+  return{
+    com_medio1:document.getElementById('com-medio1').value,
+    com_dato1:document.getElementById('com-dato1').value.trim(),
+    com_medio2:document.getElementById('com-medio2').value,
+    com_dato2:document.getElementById('com-dato2').value.trim(),
+  };
+}
 
 // ── CÁMARA ───────────────────────────────────────────────────────
 let streamCam = null;
@@ -1385,16 +1638,39 @@ async function generarPDFFinal(d){
         '2.2 Servicios adicionales. Cualquier servicio adicional no comprendido expresamente en el listado anterior requerirá addendum escrito en el que se pactarán los honorarios correspondientes. EL PRESTADOR no estará obligado a prestarlo sin dicho addendum previo.'+(d.observaciones?'  2.3 Condiciones especiales: '+d.observaciones:''),
       ]
     },
-    {
-      tit:'Cláusula Tercera — Honorarios Profesionales y Forma de Pago',
-      parrafos:[
-        '3.1 Monto. EL CLIENTE pagará '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.) por mes calendario, '+( iva?'cantidad que incluye el IVA del 16%, equivalente a subtotal de '+fmtMXN(base)+' más IVA de '+fmtMXN(base*0.16):'a la que se adicionará el IVA al 16%, resultando un total mensual de '+fmtMXN(total))+', en términos de los artículos 14 y 17 de la Ley del Impuesto al Valor Agregado.',
-        '3.2 Fecha y forma. Los honorarios deberán cubrirse a más tardar el día '+d.dia_pago+' de cada mes calendario mediante '+d.forma_pago+', a partir del '+d.fecha_inicio+'. Los datos bancarios se proporcionarán por EL PRESTADOR al inicio de la relación.',
-        '3.3 CFDI. EL PRESTADOR emitirá el Comprobante Fiscal Digital por Internet (CFDI) dentro de los tres días hábiles siguientes a la recepción de cada pago, conforme a los artículos 29 y 29-A del Código Fiscal de la Federación.',
-        '3.4 Retenciones. EL CLIENTE, como persona moral retenedora, retendrá el ISR sobre honorarios profesionales conforme a los artículos 100 al 110 de la LISR, lo enterará al SAT en los plazos legales y entregará a EL PRESTADOR las constancias de retención a más tardar en febrero del ejercicio siguiente.',
-        '3.5 Ajuste anual. Los honorarios podrán revisarse anualmente por mutuo acuerdo escrito, tomando como referencia la variación del INPC publicado por el Banco de México.',
-      ]
-    },
+    (()=>{
+      const esquema=d.esquema||'mensual';
+      let c3parrafos=[];
+      if(esquema==='mensual'){
+        c3parrafos=[
+          '3.1 Esquema de cobro: IGUALA MENSUAL. Las partes convienen en un honorario fijo mensual de '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.) por mes calendario, '+(iva?'cantidad que incluye el IVA del 16%, equivalente a subtotal de '+fmtMXN(base)+' más IVA de '+fmtMXN(base*0.16):'a la que se adicionará el IVA al 16%, resultando un total mensual de '+fmtMXN(total))+', en términos de los artículos 14 y 17 de la LIVA.',
+          '3.2 Fecha y forma de pago. Los honorarios deberán cubrirse a más tardar el día '+d.dia_pago+' de cada mes calendario mediante '+d.forma_pago+', a partir del '+d.fecha_inicio+'.',
+          '3.3 CFDI. EL PRESTADOR emitirá el Comprobante Fiscal Digital por Internet (CFDI) dentro de los tres días hábiles siguientes a la recepción de cada pago (Arts. 29 y 29-A CFF).',
+          '3.4 Retenciones. EL CLIENTE retendrá el ISR sobre honorarios (Arts. 100-110 LISR) y lo enterará al SAT, entregando constancias a más tardar en febrero del ejercicio siguiente.',
+          '3.5 Ajuste anual. Los honorarios podrán revisarse anualmente por mutuo acuerdo escrito con base en la variación del INPC.',
+        ];
+      } else if(esquema==='parcialidades'){
+        let parcList='';
+        try{
+          const parcs=JSON.parse(d.parcialidades||'[]');
+          parcList=parcs.map(p=>`Parcialidad ${p.num} — ${p.concepto}: ${fmtMXN(p.monto)}, fecha límite de pago: ${p.fecha||'a convenir'}.`).join('  ');
+        }catch(e){}
+        c3parrafos=[
+          '3.1 Esquema de cobro: PARCIALIDADES. El honorario total pactado por el servicio objeto del presente contrato asciende a la cantidad de '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.), '+(iva?'IVA incluido.':'a la que se adicionará el IVA del 16%, resultando un total de '+fmtMXN(monto*1.16)+'.')+' Dicho monto se cubrirá en parcialidades conforme al siguiente calendario: '+parcList,
+          '3.2 Forma de pago. Cada parcialidad se pagará mediante '+d.forma_pago+'. EL PRESTADOR emitirá el CFDI correspondiente a cada pago dentro de los tres días hábiles siguientes a su recepción (Arts. 29 y 29-A CFF).',
+          '3.3 Mora. El incumplimiento en el pago de cualquier parcialidad en su fecha correspondiente causará intereses moratorios del 2.5% mensual sobre el monto insoluto (Art. 362 Código de Comercio), sin perjuicio del derecho de EL PRESTADOR a suspender el servicio o rescindir el contrato conforme a la Cláusula Cuarta.',
+          '3.4 Retenciones. EL CLIENTE retendrá el ISR sobre honorarios (Arts. 100-110 LISR) en cada parcialidad y lo enterará al SAT, entregando constancias a más tardar en febrero del ejercicio siguiente.',
+        ];
+      } else {
+        c3parrafos=[
+          '3.1 Esquema de cobro: PAGO POR EVENTO. Las partes convienen en un honorario único de '+fmtMXN(monto)+' ('+numALetras(Math.round(monto))+' pesos 00/100 M.N.), '+(iva?'IVA incluido.':'a la que se adicionará el IVA del 16%, resultando un total de '+fmtMXN(monto*1.16)+'.')+' Este pago cubre la totalidad del servicio objeto del presente contrato.',
+          '3.2 Fecha y condición de pago. El honorario deberá cubrirse a más tardar el '+d.dia_pago+' mediante '+d.forma_pago+(d.hito_pago?', bajo la condición de: '+d.hito_pago:'')+'.',
+          '3.3 CFDI. EL PRESTADOR emitirá el CFDI correspondiente dentro de los tres días hábiles siguientes a la recepción del pago (Arts. 29 y 29-A CFF).',
+          '3.4 Retenciones. EL CLIENTE retendrá el ISR sobre honorarios (Arts. 100-110 LISR) y lo enterará al SAT, entregando la constancia de retención correspondiente.',
+        ];
+      }
+      return{tit:'Cláusula Tercera — Honorarios Profesionales y Forma de Pago',parrafos:c3parrafos};
+    })(),
     {
       tit:'Cláusula Cuarta — Mora e Intereses Moratorios',
       parrafos:[
@@ -1452,26 +1728,38 @@ async function generarPDFFinal(d){
       ]
     },
     {
-      tit:'Cláusula Décimo Primera — Caso Fortuito y Fuerza Mayor',
+      (()=>{
+        const m1label = d.com_medio1==='correo'?'correo electrónico':'WhatsApp';
+        const m2txt = d.com_medio2&&d.com_dato2?', y como medio secundario el '+( d.com_medio2==='correo'?'correo electrónico':'WhatsApp')+' '+d.com_dato2:'';
+        return{
+          tit:'Cláusula Décimo Primera — Medio de Comunicación Oficial',
+          parrafos:[
+            '11.1 Canal oficial. Las partes acuerdan que el medio de comunicación oficial para el intercambio de notificaciones, requerimientos, avisos con efectos jurídicos y comunicaciones relevantes derivadas del presente contrato, será el '+m1label+': '+d.com_dato1+m2txt+'. Las comunicaciones enviadas a dicho medio se tendrán por válidamente notificadas desde el momento de su envío.',
+            '11.2 Cambio de medio. Cualquier modificación al medio o dato de comunicación pactado deberá notificarse a la otra parte con al menos cinco (5) días hábiles de anticipación, mediante el propio canal establecido o por escrito fehaciente. El incumplimiento de esta obligación implicará que las notificaciones enviadas al medio originalmente pactado surtan plenos efectos legales.',
+            '11.3 Equivalencia. Las comunicaciones realizadas por los medios aquí establecidos tendrán plena validez jurídica entre las partes, de conformidad con los artículos 89 y 90 del Código de Comercio.',
+          ]
+        };
+      })(),
+      {tit:'Cláusula Décimo Segunda — Caso Fortuito y Fuerza Mayor',
       parrafos:[
         'Ninguna de las partes responderá por incumplimiento causado por eventos imprevisibles o inevitables ajenos a su voluntad (Art. 2111 CCF), como desastres naturales, epidemias, actos de terrorismo o cambios legislativos de emergencia.',
         'La parte afectada notificará en cinco (5) días hábiles describiendo el evento y su duración estimada. Si el evento se prolonga más de sesenta (60) días naturales, cualquiera de las partes podrá terminar el contrato sin responsabilidad, pagando solo los honorarios de servicios ya prestados.',
       ]
     },
     {
-      tit:'Cláusula Décimo Segunda — Cesión de Derechos y Obligaciones',
+      tit:'Cláusula Décimo Tercera — Cesión de Derechos y Obligaciones',
       parrafos:[
         'Los derechos y obligaciones del presente contrato son intransferibles. No podrán cederse, novarse ni delegarse sin consentimiento previo, expreso y por escrito de la otra parte. La cesión no autorizada es nula de pleno derecho (Art. 2031 CCF).',
       ]
     },
     {
-      tit:'Cláusula Décimo Tercera — Modificaciones al Contrato',
+      tit:'Cláusula Décimo Cuarta — Modificaciones al Contrato',
       parrafos:[
         'El contrato solo podrá modificarse mediante addendum escrito suscrito por representantes autorizados de ambas partes. Los acuerdos verbales, correos electrónicos o mensajes instantáneos no constituyen modificación válida salvo que se eleven a addendum escrito.',
       ]
     },
     {
-      tit:'Cláusula Décimo Cuarta — Validez de la Firma Electrónica',
+      tit:'Cláusula Décimo Quinta — Validez de la Firma Electrónica',
       parrafos:[
         '14.1 Validez legal. La firma electrónica tiene plena validez jurídica equivalente a la firma autógrafa, conforme a los artículos 89, 89-A y 90 del Código de Comercio, el artículo 1803 del Código Civil Federal y la NOM-151-SCFI-2016.',
         '14.2 Metadatos. Fecha, hora, dispositivo y ubicación aproximada quedan registrados automáticamente como constancia fehaciente de la libre manifestación de voluntad de las partes.',
@@ -1479,13 +1767,13 @@ async function generarPDFFinal(d){
       ]
     },
     {
-      tit:'Cláusula Décimo Quinta — Jurisdicción y Competencia',
+      tit:'Cláusula Décimo Sexta — Jurisdicción y Competencia',
       parrafos:[
         'Para la interpretación, cumplimiento, ejecución y controversias del presente contrato, las partes se someten expresamente a los Tribunales del fuero común y/o federal de la Ciudad de Monterrey, Nuevo León, México, renunciando a cualquier otro fuero que pudiera corresponderles, conforme al artículo 23 del Código Federal de Procedimientos Civiles.',
       ]
     },
     {
-      tit:'Cláusula Décimo Sexta — Legislación Aplicable e Integración',
+      tit:'Cláusula Décimo Séptima — Legislación Aplicable e Integración',
       parrafos:[
         '16.1 Marco normativo. Este contrato se rige por: Código Civil Federal (Arts. 1792-1859 y 2606-2615); Código de Comercio (Arts. 75, 78, 89, 89-A, 90); Ley del Impuesto sobre la Renta (Arts. 100-110); Ley del Impuesto al Valor Agregado (Arts. 14 y 17); Ley Federal del Derecho de Autor; Ley Federal del Trabajo (Arts. 8, 14 y 20); Código Fiscal de la Federación (Arts. 26, 29 y 29-A); Ley Federal de Protección de Datos Personales en Posesión de los Particulares; y NOM-151-SCFI-2016.',
         '16.2 Integración. Este instrumento constituye el acuerdo completo entre las partes y deja sin efecto cualquier negociación o entendimiento previo sobre el mismo objeto.',
@@ -1590,6 +1878,7 @@ async function generarPDFFinal(d){
 // ── NUEVO CONTRATO ───────────────────────────────────────────────
 function nuevoContrato(){
   D.tipo='';D.materias=[];D.alcances=[];alcId=0;contratoId=null;contratoData=null;
+  esquemaCobro='';
   document.querySelectorAll('input,textarea').forEach(el=>el.value='');
   document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
   document.querySelectorAll('.tipo-card').forEach(c=>c.classList.remove('selected'));
@@ -1597,6 +1886,9 @@ function nuevoContrato(){
   document.getElementById('alcances-list').innerHTML='';
   document.getElementById('materias-legal').style.display='none';
   document.getElementById('materias-contable').style.display='none';
+  ['mensual','parcialidades','evento'].forEach(t=>{
+    document.getElementById('cobro-'+t+'-form').style.display='none';
+  });
   clearCanvas('prestador');clearCanvas('cliente');
   const hoy=new Date();
   document.getElementById('firma-fecha').value=`${hoy.getDate()} de ${MESES[hoy.getMonth()]} de ${hoy.getFullYear()}`;
